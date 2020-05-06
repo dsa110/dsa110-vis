@@ -87,8 +87,7 @@ p.ygrid.grid_line_color = None
 
 def update():
     df = makedf()
-    source.stream(df)
-    # seems to be overplotting or appending?
+    source.stream(df, rollover=len(df))  # updates each value
 
 doc.add_periodic_callback(update, 5000)
 
