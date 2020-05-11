@@ -59,6 +59,7 @@ def makedf():
     dfs = []
     for ant in antlist:
         dd = de.get_dict("/mon/ant/{0}".format(ant))
+        # TODO: fill missing values somehow
         df = pd.DataFrame.from_dict(dd, orient='index')
         dfs.append(df)
     df = pd.concat(dfs, axis=1).transpose().reset_index()
