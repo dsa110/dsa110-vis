@@ -14,7 +14,7 @@ from dsautils import dsa_store
 de = dsa_store.DsaStore() 
 
 # parameters
-antlist = [24] + list(range(80,100))
+antlist = list(range(1,111))
 ignorelist = ['ant_num', 'index']
 
 # min/max range for color coding
@@ -46,6 +46,14 @@ minmax = {'mp_age_seconds': [0, 1],
 #          'lj_temp': [],
           'fan_err': [False, True],
 #          'emergency_off': [False, True]  # what is good/bad here?
+          'pd_current_a': [0.6, 2],
+          'pd_current_b': [0.6, 2],
+          'if_pwr_a': [-69, -60],
+          'if_pwr_b': [-69, -60],
+          'lo_pwr': [4.5, 5],
+          'beb_current_a': [200, 300],
+          'beb_current_b': [200, 300],
+          'beb_temp': [20, 35]
           }
 
 # set up data
@@ -58,16 +66,32 @@ def makedf():
     logger.info('Making dataframe for antenna monitor points')
     dfs = []
     for ant in antlist:
-        dd = de.get_dict("/mon/ant/{0}".format(ant))
+        dd = {}
+        try:
+            dd.update(de.get_dict("/mon/ant/{0}".format(ant)))  # ant mps
+        except: # should be KeyDoesNotExistException
+            pass
+
+        try:
+            dd2 = de.get_dict("/mon/beb/{0}".format(ant))  # beb mps
+            _ = dd2.pop('time')  # TODO: ignore for now to avoid clobbering ant time
+            dd.update(dd2)
+        except:  # should be KeyDoesNotExistException
+            pass
+
+        # TODO: add snap? cal?
         # TODO: fill missing values somehow
-        df = pd.DataFrame.from_dict(dd, orient='index')
-        dfs.append(df)
+
+        if len(dd):
+            df = pd.DataFrame.from_dict(dd, orient='index')
+            dfs.append(df)
+
     df = pd.concat(dfs, axis=1).transpose().reset_index()
     time_latest = df.time.max()
     df.time = 24*3600*(time_latest - df.time)
     df.rename(columns={'time': 'mp_age_seconds'}, inplace=True)
 
-    df.ant_num = df.ant_num.astype(str)
+    df.ant_num = df.ant_num.astype(int).astype(str)
     df.set_index('ant_num', 0, inplace=True)
     df.columns.name = 'mp'
     df = pd.DataFrame(df[reversed(df.columns)].stack(), columns=['value']).reset_index()
@@ -97,7 +121,7 @@ source = ColumnDataSource(df)
 logger.info('Setting up plot')
 TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
 mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
-p = figure(plot_width=700, plot_height=1000, x_range=[str(aa) for aa in antlist],
+p = figure(plot_width=700, plot_height=1000, x_range=[str(aa) for aa in np.unique(df.ant_num)],
            y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
            tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
            title="Antenna Monitor Points (loaded at MJD {0})".format(time_latest))
