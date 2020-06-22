@@ -24,4 +24,4 @@ nohup bokeh serve antmon.py --allow-websocket-origin=localhost:5005 &
 
 And visitors can then set up an ssh tunnel to port 5005 to see the bokeh application.
 
-
+![GitHub Logo](/antmon.png)
