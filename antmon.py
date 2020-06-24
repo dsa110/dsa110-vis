@@ -51,14 +51,14 @@ minmax = {'mpant_age_seconds': [0, 1],
 
 # beb mps
 minmax2 = {'mpbeb_age_seconds': [0, 1],
-          'pd_current_a': [0.6, 2],
-          'pd_current_b': [0.6, 2],
-          'if_pwr_a': [-69, -60],
-          'if_pwr_b': [-69, -60],
-          'lo_pwr': [4.5, 5],
-          'beb_current_a': [200, 300],
-          'beb_current_b': [200, 300],
-          'beb_temp': [20, 35]
+          'pd_current_a': [0.6, 2.3],
+          'pd_current_b': [0.6, 2.3],
+          'if_pwr_a': [-55, -45],
+          'if_pwr_b': [-55, -45],
+          'lo_pwr': [2.4, 3],
+          'beb_current_a': [275, 375],
+          'beb_current_b': [225, 325],
+          'beb_temp': [20, 45]
           }
 
 # set up data
@@ -117,7 +117,7 @@ def makedf():
     df2.set_index('ant_num', 0, inplace=True)
     df2.columns.name = 'mp'
     df2 = pd.DataFrame(df2[reversed(df2.columns)].stack(), columns=['value']).reset_index()
-    color2 = np.where(df2['mp'] == 'sim', 1, 0) * np.where(df2['value'] == True, 1, 0)
+    color2 = np.zeros(len(df2))
           
     # Define a color scheme:
     # false/true/in/out-of-range == black/white/green/yellow
@@ -127,9 +127,9 @@ def makedf():
 
         if isinstance(minmax[key][0], bool):
             color += np.where(df['mp'] == key, 1, 0) * np.where(df['value'] == value[1], 1, 0)
-#        elif isinstance(minmax[key][0], int):  # something special for int valued (enumerations?)
         else:
-            color += np.where(df['mp'] == key, 1, 0) * np.where(pd.to_numeric(df['value']) > value[1], 3, 2)
+            color += np.where(df['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df['value']) > value[1]) | (pd.to_numeric(df['value']) < value[0]), 3, 2)
+#            color += np.where(df['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df['value']) > value[1]) & (pd.to_numeric(df['value']) < value[0]), 3, 2) 
 
     for key, value in minmax2.items():
         if key == 'sim':
@@ -138,10 +138,11 @@ def makedf():
         if isinstance(minmax2[key][0], bool):
             color2 += np.where(df2['mp'] == key, 1, 0) * np.where(df2['value'] == value[1], 1, 0)
         else:
-            color2 += np.where(df2['mp'] == key, 1, 0) * np.where(pd.to_numeric(df2['value']) > value[1], 3, 2)
+            color2 += np.where(df2['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df2['value']) > value[1]) | (pd.to_numeric(df2['value']) < value[0]), 3, 2)
+#            color2 += np.where(df2['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df2['value']) > value[1]) & (pd.to_numeric(df2['value']) < value[0]), 3, 2)
 
-    df['color'] = np.array(['black', 'white', 'green', 'yellow'])[color]
-    df2['color'] = np.array(['black', 'white', 'green', 'yellow'])[color2]
+    df['color'] = np.array(['black', 'white', 'green', 'yellow'])[color.astype(int)]
+    df2['color'] = np.array(['black', 'white', 'green', 'yellow'])[color2.astype(int)]
     return time_latest, df, df2
 
 doc = curdoc()
