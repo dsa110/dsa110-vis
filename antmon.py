@@ -15,7 +15,7 @@ from dsautils import dsa_store
 de = dsa_store.DsaStore() 
 
 # parameters
-antlist = list(range(1,130))
+antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
 
 # min/max range for color coding
@@ -72,28 +72,30 @@ def makedf():
     dfs = []
     dfs2 = []
     for ant in antlist:
+
+        # ant mps
         dd = {}
         try:
             dd.update(de.get_dict("/mon/ant/{0}".format(ant)))  # ant mps
         except: # should be KeyDoesNotExistException
             pass
 
-        dd2 = {}
-        try:
-            dd2 = de.get_dict("/mon/beb/{0}".format(ant))  # beb mps
-#            _ = dd2.pop('time')  # TODO: ignore for now to avoid clobbering ant mp time
-#            dd.update(dd2)
-        except:  # should be KeyDoesNotExistException
-            pass
-
-        # TODO: add snap? cal?
         if len(dd):
             df = pd.DataFrame.from_dict(dd, orient='index')
             dfs.append(df)
 
+        # beb mps
+        dd2 = {}
+        try:
+            dd2.update(de.get_dict("/mon/beb/{0}".format(ant)))  # beb mps
+        except:  # should be KeyDoesNotExistException
+            pass
+
         if len(dd2):
             df2 = pd.DataFrame.from_dict(dd2, orient='index')
             dfs2.append(df2)
+
+        # TODO: add snap? cal?
 
     # ant mps
     df = pd.concat(dfs, axis=1).transpose().reset_index()
