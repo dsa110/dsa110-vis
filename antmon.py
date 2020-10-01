@@ -6,10 +6,9 @@ from bokeh.layouts import column
 from bokeh.models import ColumnDataSource
 from bokeh.transform import linear_cmap
 
+import logging
 import dsautils.dsa_syslog as dsl
-logger = dsl.DsaSyslogger()
-logger.subsystem('software')
-logger.app('vis')
+logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'vis')
 
 from dsautils import dsa_store
 de = dsa_store.DsaStore() 
@@ -98,6 +97,9 @@ def makedf():
         # TODO: add snap? cal?
 
     # ant mps
+    if not len(dfs):
+        return (None, None, None)
+
     df = pd.concat(dfs, axis=1).transpose().reset_index()
     time_latest = df.time.max()
     df.time = 24*3600*(time_latest - df.time)
@@ -149,40 +151,43 @@ def makedf():
 
 doc = curdoc()
 time_latest, df, df2 = makedf()
-source = ColumnDataSource(df)
+if df is None:
+    logger.warning("No data found")
+else:
+    source = ColumnDataSource(df)
 
-# set up plot
-logger.info('Setting up plot')
-TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
-mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
-p = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df.ant_num).astype(int))],
-           y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
-           tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
-           title="Antenna Monitor Points (started at MJD {0})".format(time_latest))
-p.rect(x='ant_num', y='mp', width=1, height=1, source=source,
-       fill_color='color', alpha=0.5)
-p.xgrid.grid_line_color = None
-p.ygrid.grid_line_color = None
+    # set up plot
+    logger.info('Setting up plot')
+    TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
+    mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
+    p = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df.ant_num).astype(int))],
+               y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
+               tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
+               title="Antenna Monitor Points (started at MJD {0})".format(time_latest))
+    p.rect(x='ant_num', y='mp', width=1, height=1, source=source,
+           fill_color='color', alpha=0.5)
+    p.xgrid.grid_line_color = None
+    p.ygrid.grid_line_color = None
 
-source2 = ColumnDataSource(df2)
-mplist2 = [mp for mp in list(minmax2.keys()) if mp not in ignorelist]
-p2 = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df2.ant_num).astype(int))],
-           y_range=list(reversed(mplist2)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
-           tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
-           title="BEB Monitor Points")
-p2.rect(x='ant_num', y='mp', width=1, height=1, source=source2,
-       fill_color='color', alpha=0.5)
-p2.xgrid.grid_line_color = None
-p2.ygrid.grid_line_color = None
+    source2 = ColumnDataSource(df2)
+    mplist2 = [mp for mp in list(minmax2.keys()) if mp not in ignorelist]
+    p2 = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df2.ant_num).astype(int))],
+                y_range=list(reversed(mplist2)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
+                tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
+                title="BEB Monitor Points")
+    p2.rect(x='ant_num', y='mp', width=1, height=1, source=source2,
+            fill_color='color', alpha=0.5)
+    p2.xgrid.grid_line_color = None
+    p2.ygrid.grid_line_color = None
 
-pall = column(p, p2)
+    pall = column(p, p2)
 
-def update():
-    time_latest, df, df2 = makedf()
-    source.stream(df, rollover=len(df))  # updates each ant value
-    source2.stream(df2, rollover=len(df2))  # updates each beb value
+    def update():
+        time_latest, df, df2 = makedf()
+        source.stream(df, rollover=len(df))  # updates each ant value
+        source2.stream(df2, rollover=len(df2))  # updates each beb value
 
-doc.add_periodic_callback(update, 5000)
+    doc.add_periodic_callback(update, 5000)
 
-doc.add_root(pall)
-doc.title = "DSA-110 Monitor Point Summary"
+    doc.add_root(pall)
+    doc.title = "DSA-110 Monitor Point Summary"
