@@ -102,6 +102,9 @@ def makedf():
 
         # TODO: add snap? cal?
 
+    print(dfs)
+    print(dfs2)
+
     # ant mps
     if not len(dfs):
         return (None, None, None)
@@ -116,7 +119,6 @@ def makedf():
     df.columns.name = 'mp'
     df = pd.DataFrame(df[reversed(df.columns)].stack(), columns=['value']).reset_index()
     color = np.where(df['mp'] == 'sim', 1, 0) * np.where(df['value'] == True, 1, 0)
-    print(df)
     
     # beb mps
     df2 = pd.concat(dfs2, axis=1, sort=True).transpose().reset_index()
@@ -129,7 +131,6 @@ def makedf():
     df2.columns.name = 'mp'
     df2 = pd.DataFrame(df2[reversed(df2.columns)].stack(), columns=['value']).reset_index()
     color2 = np.zeros(len(df2))
-    print(df2)
 
     # Define a color scheme:
     # false/true/in/out-of-range == black/white/green/yellow
