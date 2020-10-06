@@ -100,7 +100,7 @@ def makedf():
     if not len(dfs):
         return (None, None, None)
 
-    df = pd.concat(dfs, axis=1).transpose().reset_index()
+    df = pd.concat(dfs, axis=1).transpose().reset_index(sort=True)
     time_latest = df.time.max()
     df.time = 24*3600*(time_latest - df.time)
     df.rename(columns={'time': 'mpant_age_seconds'}, inplace=True)
