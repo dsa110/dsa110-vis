@@ -79,6 +79,7 @@ def makedf():
         except: # should be KeyDoesNotExistException
             pass
 
+        print(dd)
         if len(dd):
             if 'ant' in dd:
                 df = pd.DataFrame.from_dict(dd, orient='index')
@@ -93,6 +94,7 @@ def makedf():
         except:  # should be KeyDoesNotExistException
             pass
 
+        print(dd2)
         if len(dd2):
             if 'ant' in dd2:
                 df2 = pd.DataFrame.from_dict(dd2, orient='index')
