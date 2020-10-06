@@ -81,7 +81,7 @@ def makedf():
 
         print(dd)
         if len(dd):
-            if 'ant' in dd:
+            if 'ant_num' in dd:
                 df = pd.DataFrame.from_dict(dd, orient='index')
                 dfs.append(df)
             else:
@@ -96,16 +96,13 @@ def makedf():
 
         print(dd2)
         if len(dd2):
-            if 'ant' in dd2:
+            if 'ant_num' in dd2:
                 df2 = pd.DataFrame.from_dict(dd2, orient='index')
                 dfs2.append(df2)
             else:
                 logger.warning("get_dict returned nonstandard ant dict")
 
         # TODO: add snap? cal?
-
-    print(dfs)
-    print(dfs2)
 
     # ant mps
     if not len(dfs):
