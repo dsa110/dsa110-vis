@@ -112,12 +112,13 @@ def makedf():
     color = np.where(df['mp'] == 'sim', 1, 0) * np.where(df['value'] == True, 1, 0)
 
     # beb mps
+    print(dfs2[0])
     df2 = pd.concat(dfs2, axis=1, sort=True).transpose().reset_index()
     time_latest = df2.time.max()
     df2.time = 24*3600*(time_latest - df2.time)
     df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
 
-    print(df2.ant_num)
+    print(df2.iloc[0])
     df2.ant_num = df2.ant_num.astype(int).astype(str)
     df2.set_index('ant_num', 0, inplace=True)
     df2.columns.name = 'mp'
