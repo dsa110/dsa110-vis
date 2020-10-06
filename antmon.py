@@ -117,6 +117,7 @@ def makedf():
     df2.time = 24*3600*(time_latest - df2.time)
     df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
 
+    print(df2.ant_num)
     df2.ant_num = df2.ant_num.astype(int).astype(str)
     df2.set_index('ant_num', 0, inplace=True)
     df2.columns.name = 'mp'
