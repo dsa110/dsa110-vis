@@ -100,7 +100,7 @@ def makedf():
     if not len(dfs):
         return (None, None, None)
 
-    df = pd.concat(dfs, axis=1).transpose().reset_index(sort=True)
+    df = pd.concat(dfs, axis=1, sort=True).transpose().reset_index()
     time_latest = df.time.max()
     df.time = 24*3600*(time_latest - df.time)
     df.rename(columns={'time': 'mpant_age_seconds'}, inplace=True)
@@ -112,7 +112,7 @@ def makedf():
     color = np.where(df['mp'] == 'sim', 1, 0) * np.where(df['value'] == True, 1, 0)
 
     # beb mps
-    df2 = pd.concat(dfs2, axis=1).transpose().reset_index()
+    df2 = pd.concat(dfs2, axis=1, sort=True).transpose().reset_index()
     time_latest = df2.time.max()
     df2.time = 24*3600*(time_latest - df2.time)
     df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
