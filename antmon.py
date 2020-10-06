@@ -80,8 +80,11 @@ def makedf():
             pass
 
         if len(dd):
-            df = pd.DataFrame.from_dict(dd, orient='index')
-            dfs.append(df)
+            if 'ant' in dd:
+                df = pd.DataFrame.from_dict(dd, orient='index')
+                dfs.append(df)
+            else:
+                logger.warning("get_dict returned nonstandard ant dict")
 
         # beb mps
         dd2 = {}
@@ -91,8 +94,11 @@ def makedf():
             pass
 
         if len(dd2):
-            df2 = pd.DataFrame.from_dict(dd2, orient='index')
-            dfs2.append(df2)
+            if 'ant' in dd2:
+                df2 = pd.DataFrame.from_dict(dd2, orient='index')
+                dfs2.append(df2)
+            else:
+                logger.warning("get_dict returned nonstandard ant dict")
 
         # TODO: add snap? cal?
 
@@ -118,7 +124,6 @@ def makedf():
     df2.time = 24*3600*(time_latest - df2.time)
     df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
 
-    print(df2.iloc[0])
     df2.ant_num = df2.ant_num.astype(int).astype(str)
     df2.set_index('ant_num', 0, inplace=True)
     df2.columns.name = 'mp'
