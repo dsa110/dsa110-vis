@@ -5,6 +5,7 @@ from bokeh.io import show, output_file
 from bokeh.layouts import column
 from bokeh.models import ColumnDataSource
 from bokeh.transform import linear_cmap
+from astropy import time
 
 import logging
 import dsautils.dsa_syslog as dsl
@@ -107,7 +108,8 @@ def makedf():
         return (None, None, None)
 
     df = pd.concat(dfs, axis=1, sort=True).transpose().reset_index()
-    time_latest = df.time.max()
+#    time_latest = df.time.max()  # most recent in data
+    time_latest = time.Time.now().mjd  # actual current time
     df.time = 24*3600*(time_latest - df.time)
     df.rename(columns={'time': 'mpant_age_seconds'}, inplace=True)
 
@@ -119,7 +121,7 @@ def makedf():
     
     # beb mps
     df2 = pd.concat(dfs2, axis=1, sort=True).transpose().reset_index()
-    time_latest = df2.time.max()
+#    time_latest = df2.time.max()
     df2.time = 24*3600*(time_latest - df2.time)
     df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
 
