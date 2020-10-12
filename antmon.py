@@ -19,7 +19,7 @@ antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
 
 # min/max range for color coding
-minmax = {'mpant_age_seconds': [0, 1],
+minmax = {'mpant_age_seconds': [0, 5],
           'sim': [False, True],  # initialized directly
           'ant_el': [0., 145.],
           'ant_cmd_el': [0., 145.],
