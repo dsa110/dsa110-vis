@@ -19,7 +19,7 @@ antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
 
 # min/max range for color coding
-minmax = {'mpant_age_seconds': [0, 5],
+minmax = {'mpant_age_seconds': [0, 3],
           'sim': [False, True],  # initialized directly
           'ant_el': [0., 145.],
           'ant_cmd_el': [0., 145.],
@@ -50,7 +50,7 @@ minmax = {'mpant_age_seconds': [0, 5],
           }
 
 # beb mps
-minmax2 = {'mpbeb_age_seconds': [0, 1],
+minmax2 = {'mpbeb_age_seconds': [0, 3],
           'pd_current_a': [0.6, 3.0],
           'pd_current_b': [0.6, 3.0],
           'if_pwr_a': [-55, -38],
