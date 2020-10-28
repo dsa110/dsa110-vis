@@ -55,7 +55,7 @@ minmax2 = {'mpbeb_age_seconds': [0, 3],
           'pd_current_b': [0.6, 3.0],
           'if_pwr_a': [-55, -38],
           'if_pwr_b': [-55, -38],
-          'lo_pwr': [2.4, 3],
+          'lo_mon': [2.4, 3],
           'beb_current_a': [275, 375],
           'beb_current_b': [225, 325],
           'beb_temp': [20, 45]
