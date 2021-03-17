@@ -17,10 +17,10 @@ de = dsa_store.DsaStore()
 # parameters
 antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
-servicelist = ['calibration']
+servicelist = ['calibration', 'bfweightcopy', 'calpreprocess']  # T2, pipeline/1-16, search/17-20, voltage/1-16
 
 # min/max range for color coding
-minmax = {'mpant_age_seconds': [0, 3],
+minmax = {'mp_age_seconds': [0, 3],
           'sim': [False, True],  # initialized directly
           'ant_el': [0., 145.],
           'ant_cmd_el': [0., 145.],
@@ -52,7 +52,7 @@ minmax = {'mpant_age_seconds': [0, 3],
           }
 
 # beb mps
-minmax2 = {'mpbeb_age_seconds': [0, 3],
+minmax2 = {'mp_age_seconds': [0, 3],
           'pd_current_a': [0.6, 3.0],
           'pd_current_b': [0.6, 3.0],
           'if_pwr_a': [-55, -38],
@@ -62,6 +62,8 @@ minmax2 = {'mpbeb_age_seconds': [0, 3],
           'beb_current_b': [220, 325],
           'beb_temp': [20, 45]
           }
+
+minmax3 = {'mp_age_seconds': [0, 60]}   # TODO: set based on service update cadence
 
 # set up data
 def makedf():
@@ -98,20 +100,19 @@ def makedf():
             pass
 
         if len(dd2):
-            if ('ant_num' in dd) and ('ant_num' in dd2):  # only include ants in both lists
+            if ('ant_num' in dd) and ('ant_num' in dd2) and 'pd_current_a' in dd2:  # only include ants in both lists
                 df2 = pd.DataFrame.from_dict(dd2, orient='index')
                 dfs2.append(df2)
             else:
                 logger.warning("get_dict returned nonstandard ant dict")
 
-    dd = {}
+    dd3 = {}
     for service in servicelist:
         try:
-            dd[service] = de.get_dict("/mon/service/{0}".format(service))
+            dd3[service] = de.get_dict("/mon/service/{0}".format(service))
         except: # should be KeyDoesNotExistException
             pass
-
-    df3 = pd.DataFrame.from_dict(dd, orient='index')
+    df3 = pd.DataFrame.from_dict(dd3, orient='index')
 
     # ant mps
     if not len(dfs):
@@ -121,7 +122,7 @@ def makedf():
 #    time_latest = df.time.max()  # most recent in data
     time_latest = time.Time.now().mjd  # actual current time
     df.time = 24*3600*(time_latest - df.time)
-    df.rename(columns={'time': 'mpant_age_seconds'}, inplace=True)
+    df.rename(columns={'time': 'mp_age_seconds'}, inplace=True)
 
     df.ant_num = df.ant_num.astype(int).astype(str)
     df.set_index('ant_num', 0, inplace=True)
@@ -133,7 +134,7 @@ def makedf():
     df2 = pd.concat(dfs2, axis=1, sort=True).transpose().reset_index()
 #    time_latest = df2.time.max()
     df2.time = 24*3600*(time_latest - df2.time)
-    df2.rename(columns={'time': 'mpbeb_age_seconds'}, inplace=True)
+    df2.rename(columns={'time': 'mp_age_seconds'}, inplace=True)
 
     df2.ant_num = df2.ant_num.astype(int).astype(str)
     df2.set_index('ant_num', 0, inplace=True)
@@ -142,8 +143,9 @@ def makedf():
     color2 = np.zeros(len(df2))
 
     df3.time = 24*3600*(time_latest - df3.time)
-    df3.rename(columns={'time': 'mpservice_age_seconds'}, inplace=True)
-
+    df3.rename(columns={'time': 'mp_age_seconds'}, inplace=True)
+    color3 = df3.mp_age_seconds > minmax3['mp_age_seconds'][1]
+    
     # Define a color scheme:
     # false/true/in/out-of-range == black/white/green/yellow
     for key, value in minmax.items():
@@ -168,10 +170,13 @@ def makedf():
 
     df['color'] = np.array(['black', 'white', 'green', 'yellow'])[color.astype(int)]
     df2['color'] = np.array(['black', 'white', 'green', 'yellow'])[color2.astype(int)]
-    return time_latest, df, df2
+    df3['color'] = np.array(['green', 'yellow'])[color3.astype(int)]
+    df3['y'] = np.ones(len(color3))
+
+    return time_latest, df, df2, df3
 
 doc = curdoc()
-time_latest, df, df2 = makedf()
+time_latest, df, df2, df3 = makedf()
 if df is None:
     logger.warning("No data found")
 else:
@@ -180,11 +185,13 @@ else:
     # set up plot
     logger.info('Setting up plot')
     TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
+    TOOLTIPS3 = [("(service, age)", "(@index, @mp_age_seconds)")]
+
     mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
     p = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df.ant_num).astype(int))],
                y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
                tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
-               title="Antenna Monitor Points (started at MJD {0})".format(time_latest))
+               title="Antenna Monitor Points")
     p.rect(x='ant_num', y='mp', width=1, height=1, source=source,
            fill_color='color', alpha=0.5)
     p.xgrid.grid_line_color = None
@@ -201,12 +208,25 @@ else:
     p2.xgrid.grid_line_color = None
     p2.ygrid.grid_line_color = None
 
-    pall = column(p, p2)
+    source3 = ColumnDataSource(df3)
+    mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
+    print(df3)
+    p3 = figure(plot_width=1000, plot_height=100, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
+                y_range=mplist3,
+                tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
+                title=f"Service age from MJD={time_latest}")
+    p3.rect(x='index', y='y', width=1, height=2, source=source3,
+            fill_color='color', alpha=0.5)
+    p3.xgrid.grid_line_color = None
+    p3.ygrid.grid_line_color = None
+
+    pall = column(p3, p, p2)
 
     def update():
-        time_latest, df, df2 = makedf()
+        time_latest, df, df2, df3 = makedf()
         source.stream(df, rollover=len(df))  # updates each ant value
         source2.stream(df2, rollover=len(df2))  # updates each beb value
+        source3.stream(df3, rollover=len(df3))  # updates each beb value
 
     doc.add_periodic_callback(update, 5000)
 
