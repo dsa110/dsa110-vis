@@ -17,6 +17,7 @@ de = dsa_store.DsaStore()
 # parameters
 antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
+servicelist = ['calibration']
 
 # min/max range for color coding
 minmax = {'mpant_age_seconds': [0, 3],
@@ -72,6 +73,7 @@ def makedf():
     logger.info('Making dataframe for antenna monitor points')
     dfs = []
     dfs2 = []
+    dfs3 = []
     for ant in antlist:
 
         # ant mps
@@ -102,7 +104,14 @@ def makedf():
             else:
                 logger.warning("get_dict returned nonstandard ant dict")
 
-        # TODO: add snap? cal?
+    dd = {}
+    for service in servicelist:
+        try:
+            dd[service] = de.get_dict("/mon/service/{0}".format(service))
+        except: # should be KeyDoesNotExistException
+            pass
+
+    df3 = pd.DataFrame.from_dict(dd, orient='index')
 
     # ant mps
     if not len(dfs):
@@ -131,6 +140,9 @@ def makedf():
     df2.columns.name = 'mp'
     df2 = pd.DataFrame(df2[reversed(df2.columns)].stack(), columns=['value']).reset_index()
     color2 = np.zeros(len(df2))
+
+    df3.time = 24*3600*(time_latest - df3.time)
+    df3.rename(columns={'time': 'mpservice_age_seconds'}, inplace=True)
 
     # Define a color scheme:
     # false/true/in/out-of-range == black/white/green/yellow
