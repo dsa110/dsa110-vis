@@ -17,7 +17,7 @@ de = dsa_store.DsaStore()
 # parameters
 antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
-servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr'+str(i) for i in range(1,21)]
+servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)]
 
 # min/max range for color coding
 minmax = {'mp_age_seconds': [0, 3],
@@ -107,6 +107,7 @@ def makedf():
                 logger.warning("get_dict returned nonstandard ant dict")
 
     dd3 = {}
+    print('Checking services:', servicelist)
     for service in servicelist:
         try:
             dd3[service] = de.get_dict("/mon/service/{0}".format(service))
@@ -211,7 +212,7 @@ else:
     source3 = ColumnDataSource(df3)
     mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
     print(df3)
-    p3 = figure(plot_width=1000, plot_height=100, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
+    p3 = figure(plot_width=1000, plot_height=150, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
                 y_range=mplist3,
                 tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
                 title=f"Service age from MJD={time_latest}")
@@ -219,7 +220,7 @@ else:
             fill_color='color', alpha=0.5)
     p3.xgrid.grid_line_color = None
     p3.ygrid.grid_line_color = None
-
+    p3.xaxis.major_label_orientation = 0.9
     pall = column(p3, p, p2)
 
     def update():
