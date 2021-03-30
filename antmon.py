@@ -17,7 +17,7 @@ de = dsa_store.DsaStore()
 # parameters
 antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
-servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)]
+servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['T2service', 'T2gulp']
 
 # min/max range for color coding
 minmax = {'mp_age_seconds': [0, 3],
