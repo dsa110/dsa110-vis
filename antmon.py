@@ -20,7 +20,7 @@ ignorelist = ['ant_num', 'index']
 servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['T2service', 'T2gulp']
 
 # min/max range for color coding
-minmax = {'mp_age_seconds': [0, 3],
+minmax = {'mp_age_seconds': [0, 5],
           'sim': [False, True],  # initialized directly
           'ant_el': [0., 145.],
           'ant_cmd_el': [0., 145.],
@@ -52,14 +52,14 @@ minmax = {'mp_age_seconds': [0, 3],
           }
 
 # beb mps
-minmax2 = {'mp_age_seconds': [0, 3],
+minmax2 = {'mp_age_seconds': [0, 5],
           'pd_current_a': [0.6, 3.0],
           'pd_current_b': [0.6, 3.0],
           'if_pwr_a': [-55, -38],
           'if_pwr_b': [-55, -38],
           'lo_mon': [2.4, 3],
           'beb_current_a': [270, 375],
-          'beb_current_b': [220, 325],
+          'beb_current_b': [210, 325],
           'beb_temp': [20, 45]
           }
 
