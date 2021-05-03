@@ -146,6 +146,12 @@ def makedf():
     df3.time = 24*3600*(time_latest - df3.time)
     df3.rename(columns={'time': 'mp_age_seconds'}, inplace=True)
     color3 = df3.mp_age_seconds > minmax3['mp_age_seconds'][1]
+
+    enums = {'drv_cmd': ['Off', 'North', 'South'],
+             'drv_act': ['Off', 'North', 'South'],
+             'drv_state': ['Halt', 'Seek', 'Acquired', 'Timeout', 'FwLimN', 'FwLimS']
+             }
+
     
     # Define a color scheme:
     # false/true/in/out-of-range == black/white/green/yellow
@@ -157,7 +163,17 @@ def makedf():
             color += np.where(df['mp'] == key, 1, 0) * np.where(df['value'] == value[1], 1, 0)
         else:
             color += np.where(df['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df['value']) > value[1]) | (pd.to_numeric(df['value']) < value[0]), 3, 2)
-#            color += np.where(df['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df['value']) > value[1]) & (pd.to_numeric(df['value']) < value[0]), 3, 2) 
+#            color += np.where(df['mp'] == key, 1, 0) * np.where( (pd.to_numeric(df['value']) > value[1]) & (pd.to_numeric(df['value']) < value[0]), 3, 2)
+
+    # overload enums with their string meanings
+    for key, value in minmax.items():
+        if key == 'sim':
+            continue
+
+        if key in enums:
+            ww = np.where(df['mp'] == key)[0]
+            value = df['value'][ww].astype(int)
+            df['value'][ww] = np.array(enums[key])[value]
 
     for key, value in minmax2.items():
         if key == 'sim':
