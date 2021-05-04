@@ -6,6 +6,10 @@ from bokeh.layouts import column
 from bokeh.models import ColumnDataSource
 from bokeh.transform import linear_cmap
 from astropy import time
+import os
+
+from slack_sdk import WebClient
+client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
 
 import logging
 import dsautils.dsa_syslog as dsl
@@ -227,7 +231,7 @@ else:
 
     source3 = ColumnDataSource(df3)
     mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
-    print(df3)
+#    print(df3)
     p3 = figure(plot_width=1000, plot_height=150, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
                 y_range=mplist3,
                 tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
@@ -244,6 +248,25 @@ else:
         source.stream(df, rollover=len(df))  # updates each ant value
         source2.stream(df2, rollover=len(df2))  # updates each beb value
         source3.stream(df3, rollover=len(df3))  # updates each beb value
+        dfyellow = df[df['color'] == 'yellow']
+        df2yellow = df2[df2['color'] == 'yellow']
+        df3yellow = df3[df3['color'] == 'yellow']
+        dfyc = pd.concat([dfyellow, df2yellow, df3yellow])
+        try:
+            if not all(dfyc.index == dfyc0.index):
+                dfdiff = dfyc[~dfyc.isin(dfyc0)].dropna()
+                message = dfdiff.to_string()
+                response = client.chat_postMessage(channel='#observing', text=message, icon_emoji=':robot_face:')
+                assert response["ok"]
+                if response["message"]["text"] != message:
+                    logger.warn("Response from Slack API differs from message sent. "
+                                "Maybe just broken into multiple updates: {0}".format(response))
+                dfyc0 = dfyc
+        except UnboundLocalError:
+            dfyellow0 = df[df['color'] == 'yellow']
+            df2yellow0 = df2[df2['color'] == 'yellow']
+            df3yellow0 = df3[df3['color'] == 'yellow']
+            dfyc0 = pd.concat([dfyellow0, df2yellow0, df3yellow0])
 
     doc.add_periodic_callback(update, 5000)
 
