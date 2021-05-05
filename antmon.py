@@ -15,8 +15,9 @@ import logging
 import dsautils.dsa_syslog as dsl
 logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'vis')
 
-from dsautils import dsa_store
+from dsautils import dsa_store, cnf
 de = dsa_store.DsaStore() 
+my_cnf = cnf.Conf()
 
 # parameters
 antlist = list(range(1,120))
@@ -24,50 +25,10 @@ ignorelist = ['ant_num', 'index']
 servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['T2service', 'T2gulp']
 
 # min/max range for color coding
-minmax = {'mp_age_seconds': [0, 5],
-          'sim': [False, True],  # initialized directly
-          'ant_el': [0., 145.],
-          'ant_cmd_el': [0., 145.],
-          'drv_cmd': [0, 2],
-          'drv_act': [0, 2],
-          'drv_state': [1, 2],
-          'at_north_lim': [False, True],
-          'at_south_lim': [False, True],
-          'brake_on': [False, True],
-          'emergency_off': [False, True],
-          'motor_temp': [-10., 40.],
-#          'focus_temp': [],
-          'lna_current_a': [45., 85.],
-          'lna_current_b': [45., 85.],
-          'noise_a_on': [False, True],
-          'noise_b_on': [False, True],
-          'rf_pwr_a': [-80., -60.],
-          'rf_pwr_b': [-80., -60.],
-          'feb_current_a': [240., 300.],
-          'feb_current_b': [240., 300.],
-          'laser_volts_a': [2.5, 3.1],
-          'laser_volts_b': [2.5, 3.1],
-          'feb_temp_a': [-10., 60.],
-          'feb_temp_b': [-10., 60.],
-#          'psu_volt': [],
-#          'lj_temp': [],
-          'fan_err': [False, True],
-#          'emergency_off': [False, True]  # what is good/bad here?
-          }
-
+minmax = my_cnf.get('minmax_ant')
 # beb mps
-minmax2 = {'mp_age_seconds': [0, 5],
-          'pd_current_a': [0.6, 3.0],
-          'pd_current_b': [0.6, 3.0],
-          'if_pwr_a': [-55, -38],
-          'if_pwr_b': [-55, -38],
-          'lo_mon': [2.4, 3],
-          'beb_current_a': [270, 375],
-          'beb_current_b': [210, 325],
-          'beb_temp': [20, 45]
-          }
-
-minmax3 = {'mp_age_seconds': [0, 60]}   # TODO: set based on service update cadence
+minmax2 = my_cnf.get('minmax_beb')
+minmax3 = my_cnf.get('minmax_service')
 
 # set up data
 def makedf():
@@ -245,30 +206,37 @@ else:
 
     def update():
         time_latest, df, df2, df3 = makedf()
-        source.stream(df, rollover=len(df))  # updates each ant value
-        source2.stream(df2, rollover=len(df2))  # updates each beb value
-        source3.stream(df3, rollover=len(df3))  # updates each beb value
-        dfyellow = df[df['color'] == 'yellow']
-        df2yellow = df2[df2['color'] == 'yellow']
-        df3yellow = df3[df3['color'] == 'yellow']
-        dfyc = pd.concat([dfyellow, df2yellow, df3yellow])
-        try:
-            if not all(dfyc.index == dfyc0.index):
-                dfdiff = dfyc[~dfyc.isin(dfyc0)].dropna()
-                message = dfdiff.to_string()
-                response = client.chat_postMessage(channel='#observing', text=message, icon_emoji=':robot_face:')
-                assert response["ok"]
-                if response["message"]["text"] != message:
-                    logger.warn("Response from Slack API differs from message sent. "
-                                "Maybe just broken into multiple updates: {0}".format(response))
-                dfyc0 = dfyc
-        except UnboundLocalError:
-            dfyellow0 = df[df['color'] == 'yellow']
-            df2yellow0 = df2[df2['color'] == 'yellow']
-            df3yellow0 = df3[df3['color'] == 'yellow']
-            dfyc0 = pd.concat([dfyellow0, df2yellow0, df3yellow0])
 
     doc.add_periodic_callback(update, 5000)
 
     doc.add_root(pall)
     doc.title = "DSA-110 Monitor Point Summary"
+
+
+def slack_alert(df, df2, df3):
+    """ Parse dfs for bad mps and push alert to slack
+    """
+    
+    source.stream(df, rollover=len(df))  # updates each ant value
+    source2.stream(df2, rollover=len(df2))  # updates each beb value
+    source3.stream(df3, rollover=len(df3))  # updates each beb value
+    dfyellow = df[df['color'] == 'yellow']
+    df2yellow = df2[df2['color'] == 'yellow']
+    df3yellow = df3[df3['color'] == 'yellow']
+    dfyc = pd.concat([dfyellow, df2yellow])
+    try:
+        print(dfyc.index)
+        if not all(dfyc.index == dfyc0.index):
+            dfdiff = dfyc[~dfyc.isin(dfyc0)].dropna()
+            message = dfdiff.to_string()
+            response = client.chat_postMessage(channel='#observing', text=message, icon_emoji=':robot_face:')
+            assert response["ok"]
+            if response["message"]["text"] != message:
+                logger.warn("Response from Slack API differs from message sent. "
+                            "Maybe just broken into multiple updates: {0}".format(response))
+            dfyc0 = dfyc
+    except UnboundLocalError:
+        dfyellow0 = df[df['color'] == 'yellow']
+        df2yellow0 = df2[df2['color'] == 'yellow']
+        df3yellow0 = df3[df3['color'] == 'yellow']
+        dfyc0 = pd.concat([dfyellow0, df2yellow0])
