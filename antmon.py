@@ -41,6 +41,7 @@ def makedf():
     dfs = []
     dfs2 = []
     dfs3 = []
+
     for ant in antlist:
 
         # ant mps
@@ -158,6 +159,13 @@ def makedf():
     return time_latest, df, df2, df3
 
 doc = curdoc()
+
+# how to combine callbacks?
+#    wid = de.add_watch_prefix('/mon/ant/', makedf)
+#    sleep(4)
+#    de.cancel(wid)
+# but actually this should be driven by etcd callback...
+
 time_latest, df, df2, df3 = makedf()
 if df is None:
     logger.warning("No data found")
