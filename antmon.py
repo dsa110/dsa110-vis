@@ -45,27 +45,21 @@ def makedf():
     for ant in antlist:
 
         # ant mps
-        dd = {}
-        try:
-            dd.update(de.get_dict("/mon/ant/{0}".format(ant)))  # ant mps
-        except: # should be KeyDoesNotExistException
-            pass
+        dd = de.get_dict("/mon/ant/{0}".format(ant))
 
-        if len(dd):
+        if dd is not None:
             if 'ant_num' in dd:
                 df = pd.DataFrame.from_dict(dd, orient='index')
                 dfs.append(df)
             else:
                 logger.warning("get_dict returned nonstandard ant dict")
+        else:
+            continue
 
         # beb mps
-        dd2 = {}
-        try:
-            dd2.update(de.get_dict("/mon/beb/{0}".format(ant)))  # beb mps
-        except:  # should be KeyDoesNotExistException
-            pass
+        dd2 = de.get_dict("/mon/beb/{0}".format(ant))
 
-        if len(dd2):
+        if dd2 is not None:
             if ('ant_num' in dd) and ('ant_num' in dd2) and 'pd_current_a' in dd2:  # only include ants in both lists
                 df2 = pd.DataFrame.from_dict(dd2, orient='index')
                 dfs2.append(df2)
