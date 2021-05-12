@@ -13,7 +13,8 @@ client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
 
 import logging
 import dsautils.dsa_syslog as dsl
-logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'vis')
+logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'antmon')
+logger.app = 'bokeh'
 
 from dsautils import dsa_store, cnf
 de = dsa_store.DsaStore() 
@@ -37,6 +38,7 @@ def makedf():
     column mp*_age_seconds gives offset from that value.
     """
     
+    logger.function = 'makedf'
     logger.info('Making dataframe for antenna monitor points')
     dfs = []
     dfs2 = []
@@ -207,7 +209,8 @@ else:
     pall = column(p3, p, p2)
 
     def update():
-        time_latest, df, df2, df3 = makedf()
+        logger.function = 'update'
+    time_latest, df, df2, df3 = makedf()
 
     doc.add_periodic_callback(update, 5000)
 
