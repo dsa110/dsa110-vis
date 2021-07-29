@@ -9,7 +9,10 @@ from astropy import time
 import os
 
 from slack_sdk import WebClient
-client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
+try:
+    client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
+except KeyError:
+    print('No SLACK_BOT_TOKEN env var found. No slack posting.')
 
 import logging
 import dsautils.dsa_syslog as dsl
