@@ -53,7 +53,7 @@ def makedf():
         dd = de.get_dict("/mon/ant/{0}".format(ant))
 
         if dd is not None:
-            if 'ant_num' in dd:
+            if ('ant_num' in dd) and ('lna_current_a' in dd):
                 df = pd.DataFrame.from_dict(dd, orient='index')
                 dfs.append(df)
             else:
