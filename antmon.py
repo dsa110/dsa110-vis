@@ -78,6 +78,8 @@ def makedf():
             value = de.get_dict("/mon/service/{0}".format(service))
             if value is not None:
                 dd3[service] = value
+            else:
+                dd3[service] = {'time': 0, 'cadence': 0}
         except: # should be KeyDoesNotExistException
             pass
     df3 = pd.DataFrame.from_dict(dd3, orient='index')
