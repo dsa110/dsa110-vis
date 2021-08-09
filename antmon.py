@@ -72,7 +72,7 @@ def makedf():
                 logger.warning("get_dict returned nonstandard ant dict")
 
     dd3 = {}
-    print('Checking services:', servicelist)
+    logger.info(f'Checking services: {servicelist}')
     for service in servicelist:
         try:
             value = de.get_dict("/mon/service/{0}".format(service))
@@ -201,7 +201,6 @@ else:
 
     source3 = ColumnDataSource(df3)
     mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
-#    print(df3)
     p3 = figure(plot_width=1000, plot_height=150, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
                 y_range=mplist3,
                 tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
