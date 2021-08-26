@@ -26,7 +26,7 @@ my_cnf = cnf.Conf()
 # parameters
 antlist = list(range(1,120))
 ignorelist = ['ant_num', 'index']
-servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['voltage/'+str(i) for i in range(1,21)] + ['T2service', 'T2gulp'] + ['triggercopy']
+servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['voltage/'+str(i) for i in range(1,17)] + ['T2service', 'T2gulp'] + ['triggercopy']
 
 # min/max range for color coding
 minmax = my_cnf.get('minmax_ant')
