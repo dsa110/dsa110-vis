@@ -216,7 +216,9 @@ else:
 
     def update():
         logger.function = 'update'
-    time_latest, df, df2, df3 = makedf()
+        source.stream(df, rollover=len(df))  # updates each ant value
+        source2.stream(df2, rollover=len(df2))  # updates each beb value
+        source3.stream(df3, rollover=len(df3))  # updates each beb value
 
     doc.add_periodic_callback(update, 5000)
 
