@@ -8,12 +8,6 @@ from bokeh.transform import linear_cmap
 from astropy import time
 import os
 
-from slack_sdk import WebClient
-try:
-    client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
-except KeyError:
-    print('No SLACK_BOT_TOKEN env var found. No slack posting.')
-
 import logging
 import dsautils.dsa_syslog as dsl
 logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'antmon')
@@ -215,7 +209,7 @@ else:
     pall = column(p3, p, p2)
 
     def update():
-        logger.function = 'update'
+        time_latest, df, df2, df3 = makedf()
         source.stream(df, rollover=len(df))  # updates each ant value
         source2.stream(df2, rollover=len(df2))  # updates each beb value
         source3.stream(df3, rollover=len(df3))  # updates each beb value
