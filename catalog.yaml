@@ -1,0 +1,76 @@
+cat_name: fluxcals catalog
+cat_date: 7feb22
+home_dec: 68:00:00
+sources:
+  - name: 3C147
+    RA: 05 42 36.14
+    DEC: +49 51 07.2
+    blocklen: 30
+    priority: 5
+    type: C
+    dm:
+    snr: 
+    trigger: True
+  - name: 3C196
+    RA: 08 13 36.06
+    DEC: +48 13 02.6
+    blocklen: 30
+    priority: 5
+    type: C
+    dm:
+    snr: 
+    trigger: True
+  - name: 3C286
+    RA: 13 31 08.29
+    DEC: +30 30 33.0
+    blocklen: 30
+    priority: 5
+    type: C
+    dm:
+    snr: 
+    trigger: True
+  - name: 3C295
+    RA: 14 11 20.63
+    DEC: +52 12 09
+    blocklen: 30
+    priority: 1
+    type: C
+    dm: 
+    snr: 
+    trigger: True
+  - name: FRB20190303A
+    RA: 13 53 00
+    DEC: +48 15 00
+    blocklen: 30
+    priority:
+    type:
+    dm: 223
+    snr:
+    trigger: True
+  - name: FRB20181119A
+    RA: 12 42 00
+    DEC: +65 08 00
+    blocklen: 30
+    priority:
+    type:
+    dm: 366
+    snr:
+    trigger: True
+  - name: FRB20180814A
+    RA: 04 22 00
+    DEC: +73 40 00
+    blocklen: 30
+    priority:
+    type:
+    dm: 189
+    snr:
+    trigger: True
+  - name: FRB20190417A
+    RA: 19 39 00
+    DEC: +59 24 00
+    blocklen: 30
+    priority:
+    type:
+    dm: 1379
+    snr:
+    trigger: True

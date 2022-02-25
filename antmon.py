@@ -155,70 +155,76 @@ def makedf():
 
     return time_latest, df, df2, df3
 
-doc = curdoc()
-
 # how to combine callbacks?
 #    wid = de.add_watch_prefix('/mon/ant/', makedf)
 #    sleep(4)
 #    de.cancel(wid)
 # but actually this should be driven by etcd callback...
 
-time_latest, df, df2, df3 = makedf()
-if df is None:
-    logger.warning("No data found")
-else:
-    source = ColumnDataSource(df)
+def makefig():
+    time_latest, df, df2, df3 = makedf()
+    if df is None:
+        logger.warning("No data found")
+    else:
+        source = ColumnDataSource(df)
 
-    # set up plot
-    logger.info('Setting up plot')
-    TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
-    TOOLTIPS3 = [("(service, age)", "(@index, @mp_age_seconds)")]
+        # set up plot
+        logger.info('Setting up plot')
+        TOOLTIPS = [("value", "@value"), ("(ant_num, mp)", "(@ant_num, @mp)")]
+        TOOLTIPS3 = [("(service, age)", "(@index, @mp_age_seconds)")]
 
-    mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
-    p = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df.ant_num).astype(int))],
-               y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
-               tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
-               title="Antenna Monitor Points")
-    p.rect(x='ant_num', y='mp', width=1, height=1, source=source,
-           fill_color='color', alpha=0.5)
-    p.xgrid.grid_line_color = None
-    p.ygrid.grid_line_color = None
+        mplist = [mp for mp in list(minmax.keys()) if mp not in ignorelist]
+        p = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df.ant_num).astype(int))],
+                   y_range=list(reversed(mplist)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
+                   tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
+                   title="Antenna Monitor Points")
+        p.rect(x='ant_num', y='mp', width=1, height=1, source=source,
+               fill_color='color', alpha=0.5)
+        p.xgrid.grid_line_color = None
+        p.ygrid.grid_line_color = None
 
-    source2 = ColumnDataSource(df2)
-    mplist2 = [mp for mp in list(minmax2.keys()) if mp not in ignorelist]
-    p2 = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df2.ant_num).astype(int))],
-                y_range=list(reversed(mplist2)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
-                tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
-                title="BEB Monitor Points")
-    p2.rect(x='ant_num', y='mp', width=1, height=1, source=source2,
-            fill_color='color', alpha=0.5)
-    p2.xgrid.grid_line_color = None
-    p2.ygrid.grid_line_color = None
+        source2 = ColumnDataSource(df2)
+        mplist2 = [mp for mp in list(minmax2.keys()) if mp not in ignorelist]
+        p2 = figure(plot_width=1000, plot_height=1000, x_range=[str(aa) for aa in sorted(np.unique(df2.ant_num).astype(int))],
+                    y_range=list(reversed(mplist2)), y_axis_label='Monitor Point', x_axis_label='Antenna Number',
+                    tooltips=TOOLTIPS, toolbar_location=None, x_axis_location="above",
+                    title="BEB Monitor Points")
+        p2.rect(x='ant_num', y='mp', width=1, height=1, source=source2,
+                fill_color='color', alpha=0.5)
+        p2.xgrid.grid_line_color = None
+        p2.ygrid.grid_line_color = None
 
-    source3 = ColumnDataSource(df3)
-    mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
-    p3 = figure(plot_width=1000, plot_height=150, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
-                y_range=mplist3,
-                tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
-                title=f"Service age from MJD={time_latest}")
-    p3.rect(x='index', y='y', width=1, height=2, source=source3,
-            fill_color='color', alpha=0.5)
-    p3.xgrid.grid_line_color = None
-    p3.ygrid.grid_line_color = None
-    p3.xaxis.major_label_orientation = 0.9
-    pall = column(p3, p, p2)
+        source3 = ColumnDataSource(df3)
+        mplist3 = [mp for mp in list(minmax3.keys()) if mp not in ignorelist]
+        p3 = figure(plot_width=1000, plot_height=150, x_range=[str(aa) for aa in sorted(np.unique(df3.index))],
+                    y_range=mplist3,
+                    tooltips=TOOLTIPS3, toolbar_location=None, x_axis_location="above",
+                    title=f"Service age from MJD={time_latest}")
+        p3.rect(x='index', y='y', width=1, height=2, source=source3,
+                fill_color='color', alpha=0.5)
+        p3.xgrid.grid_line_color = None
+        p3.ygrid.grid_line_color = None
+        p3.xaxis.major_label_orientation = 0.9
+        pall = column(p3, p, p2)
+    return pall, source, source2, source3
 
-    def update():
-        time_latest, df, df2, df3 = makedf()
-        source.stream(df, rollover=len(df))  # updates each ant value
-        source2.stream(df2, rollover=len(df2))  # updates each beb value
-        source3.stream(df3, rollover=len(df3))  # updates each beb value
+
+def makedoc():
+    doc = curdoc()
+    pall, source, source2, source3 = makefig()
+
+    update(source, source2, source3)
 
     doc.add_periodic_callback(update, 5000)
 
     doc.add_root(pall)
     doc.title = "DSA-110 Monitor Point Summary"
 
+def update(source, source2, source3):
+    time_latest, df, df2, df3 = makedf()
+    source.stream(df, rollover=len(df))  # updates each ant value
+    source2.stream(df2, rollover=len(df2))  # updates each beb value
+    source3.stream(df3, rollover=len(df3))  # updates each beb value
 
 def slack_alert(df, df2, df3):
     """ Parse dfs for bad mps and push alert to slack
