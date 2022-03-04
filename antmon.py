@@ -13,9 +13,14 @@ import dsautils.dsa_syslog as dsl
 logger = dsl.DsaSyslogger('dsa', 'software', logging.INFO, 'antmon')
 logger.app = 'bokeh'
 
-from dsautils import dsa_store, cnf
-de = dsa_store.DsaStore() 
-my_cnf = cnf.Conf()
+try:
+    from dsautils import dsa_store, cnf
+    de = dsa_store.DsaStore() 
+    my_cnf = cnf.Conf()
+except ImportError:
+    my_cnf = None
+    de = None
+    print('No dsautils found. Continuing...')
 
 # parameters
 antlist = list(range(1,120))
@@ -23,10 +28,10 @@ ignorelist = ['ant_num', 'index']
 servicelist = ['calibration', 'bfweightcopy', 'calpreprocess'] + ['corr/'+str(i) for i in range(1,21)] + ['voltage/'+str(i) for i in range(1,17)] + ['T2service', 'T2gulp'] + ['triggercopy', 'plot_T1', 'T3manager']
 
 # min/max range for color coding
-minmax = my_cnf.get('minmax_ant')
+minmax = my_cnf.get('minmax_ant') if my_cnf is not None else None
 # beb mps
-minmax2 = my_cnf.get('minmax_beb')
-minmax3 = my_cnf.get('minmax_service')
+minmax2 = my_cnf.get('minmax_beb') if my_cnf is not None else None
+minmax3 = my_cnf.get('minmax_service') if my_cnf is not None else None
 
 # set up data
 def makedf():
