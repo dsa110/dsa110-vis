@@ -281,7 +281,10 @@ def return_times_day(catalog, start_time, duration, observer):
     for i in range(len(srcs2)):
         if i==0:
             start_times.append(start_time.mjd)
-            end_times.append((0.5*(transit_times[i].mjd+transit_times[i+1].mjd))[0])
+            if len(srcs2) > 1:
+                end_times.append((0.5*(transit_times[i].mjd+transit_times[i+1].mjd))[0])
+            else:
+                end_times.append(start_time.mjd + 1)
         elif i==len(srcs2)-1:
             start_times.append((0.5*(transit_times[i].mjd+transit_times[i-1].mjd))[0])
             end_times.append(start_time.mjd+duration/24)
@@ -316,6 +319,9 @@ def pause_until(time):
 
     # Now we wait
     while True:
+        if os.path.exists('/home/ubuntu/proj/dsa110-shell/dsa110-vis/interrupt'):
+            print('interrupting...')
+            return 1
         #now = datetime.now().astimezone(timezone.utc).timestamp()
         now = datetime.utcnow().timestamp()
         diff = end - now
