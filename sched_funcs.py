@@ -252,7 +252,7 @@ def return_times_day(catalog, start_time, duration, observer):
             azs = aas.az.value
 
             if (azs.min() < 1) and (alts.max() > 20):
-                tt = times0[(azs <= azs.min()) * (azs.min() < 1)]
+                tt = times0[(alts >= alts.max()) * (np.abs(azs.min()) < 10)]
                 print(src['name'], tt, np.max(alts), np.min(azs))
                 transit_times.append(tt)
                 srcnames.append(src['name'])
