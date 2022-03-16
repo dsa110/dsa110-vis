@@ -87,7 +87,7 @@ def define_actions(tab,sched_start,recording=False):
             
         if tab[ct]['configuration']['trigger'] is True:
             transit_time = Time(tab[ct]['start time (UTC)']) + tab[ct]['duration (minutes)']*u.min/2
-            for offset in [-10*u.min, -6*u.min, -3*u.min, 1*u.min, 4*u.min]:
+            for offset in [-6*u.min, 0*u.min, 6*u.min]:
                 tm = transit_time+offset
                 actions.append(
                     {
@@ -184,7 +184,7 @@ def define_actions_simple(srcs,transit_times,max_alts,stimes,end_times,northy,re
             
             
         if srcs[ct]['trigger'] is True:
-            for offset in [-10*u.min, -6*u.min, -3*u.min, 1*u.min, 4*u.min]:
+            for offset in [-6*u.min, 0*u.min, 6*u.min]:
                 tm = (transit_times[ct]+offset)[0]
                 actions.append(
                     {
