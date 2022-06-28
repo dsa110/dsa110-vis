@@ -93,7 +93,7 @@ def define_actions(tab,sched_start,recording=False):
                     {
                         'time': tm.datetime,
                         'cmd': 'trigger',
-                        'val': '0-{0}{1}-'.format(
+                        'val': '{0}{1}'.format(
                             tab[ct]['target'],
                             ''.join([
                                 random.choice(string.ascii_lowercase)
@@ -190,7 +190,7 @@ def define_actions_simple(srcs,transit_times,max_alts,stimes,end_times,northy,re
                     {
                         'time': tm.datetime,
                         'cmd': 'trigger',
-                        'val': '0-{0}{1}-'.format(
+                        'val': '{0}{1}'.format(
                             srcs[ct]['name'],
                             ''.join([
                                 random.choice(string.ascii_lowercase)
@@ -356,7 +356,7 @@ def exec_action(a):
         d.put_dict('/cmd/corr/docopy','False')
 
     if a['cmd'] == 'trigger':
-        d.put_dict('/cmd/corr/0', {'cmd': 'trigger', 'val': a['val']})
+        d.put_dict('/cmd/corr/0', {'cmd': 'ctrltrigger', 'val': a['val']})
         
     if a['cmd'] == 'record':
         d.put_dict('/cmd/corr/17', {'cmd': 'record', 'val': a['val']})
