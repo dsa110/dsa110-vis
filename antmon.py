@@ -16,7 +16,7 @@ logger.app = 'bokeh'
 try:
     from dsautils import dsa_store, cnf
     de = dsa_store.DsaStore() 
-    my_cnf = cnf.Conf()
+    my_cnf = cnf.Conf(use_etcd=True)
 except ImportError:
     my_cnf = None
     de = None
