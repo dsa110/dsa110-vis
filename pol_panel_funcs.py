@@ -214,10 +214,10 @@ class pol_panel(param.Parameterized):
 
 
 
-    I = np.zeros((20480,192))#6144))
-    Q = np.zeros((20480,192))#6144))
-    U = np.zeros((20480,192))#6144))
-    V = np.zeros((20480,192))#6144))
+    I = np.zeros((20480,6144))
+    Q = np.zeros((20480,6144))
+    U = np.zeros((20480,6144))
+    V = np.zeros((20480,6144))
 
 
 
@@ -229,8 +229,8 @@ class pol_panel(param.Parameterized):
 
     fobj = None#fobj#None
     timeaxis = np.zeros(20480)#timeaxis#np.zeros(20480)
-    freq_test_init = [np.zeros(192)]*4
-    wav_test = [np.zeros(192)]*4
+    freq_test_init = [np.zeros(6144)]*4
+    wav_test = [np.zeros(6144)]*4
 
 
     n_t = param.Integer(default=1,bounds=(1,128),label=r'n_t')
@@ -271,6 +271,7 @@ class pol_panel(param.Parameterized):
     def load_FRB(self):
         try:
             if self.error=="Loading FRB...":
+                t1 = time.time()
                 ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
                 nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
                 datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ids + "_" + nickname + "/"
@@ -278,13 +279,13 @@ class pol_panel(param.Parameterized):
                 #caldate="22-12-18"
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
-                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(datadir,ids + "_dev",20480,n_t=self.n_t,n_f=32,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(datadir,ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
                 self.freq_test = copy.deepcopy(self.freq_test_init)
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
                 #self.frb_loaded = True
 
                 #time.sleep(5)
-                self.error = "Complete!"
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
                 #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
 
         except Exception as e:
@@ -327,8 +328,10 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
 
                 #get spectrum for current component
+                self.error = "Computing Spectrum..."
+                t1 = time.time()
                 (I_fmasked,Q_fmasked,U_fmasked,V_fmasked) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
-
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute spectrum"
 
                 self.comp_dict[self.curr_comp]["I_f"] = I_fmasked
                 self.comp_dict[self.curr_comp]["Q_f"] = Q_fmasked
@@ -341,6 +344,8 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["V_f_init"] = V_fmasked
 
                 #get polarization fractions
+                self.error = "Computing polarization..."
+                t1 = time.time()
                 [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
                 self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                 self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
@@ -424,6 +429,7 @@ class pol_panel(param.Parameterized):
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '
                     self.error = "No more components, click Done"
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
                 self.param.trigger('next_comp')
 
         except Exception as e:
@@ -443,11 +449,13 @@ class pol_panel(param.Parameterized):
                 self.comp_choose_on = False
                 self.filt_weights_on = True
 
+                self.error = "Downsampling dynamic spectrum..."
+                t1 = time.time()
                 self.I = dsapol.avg_time(self.I,self.n_t)
                 self.Q = dsapol.avg_time(self.Q,self.n_t)
                 self.U = dsapol.avg_time(self.U,self.n_t)
                 self.V = dsapol.avg_time(self.V,self.n_t)
-
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to downsample in time"
 
                 self.param.trigger('done')
             elif self.filt_weights_on:
@@ -464,9 +472,15 @@ class pol_panel(param.Parameterized):
                     self.filt_weights_on = False
                     self.freq_samp_on = True
 
+                    self.error = "Computing Spectrum..."
+                    t1 = time.time()
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute spectrum"
+
 
                     #get total polarization
+                    self.error = "Computing polarization"
+                    t1 = time.time()
                     [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))  
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))
@@ -482,7 +496,7 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
-
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
                     self.STEP = 1
                 else:
@@ -497,8 +511,11 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                     self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
 
+                    self.error = "Computing Spectrum..."
+                    t1 = time.time()
                     (I_fmasked,Q_fmasked,U_fmasked,V_fmasked) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
-                    print("GOT FREQ")
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute spectrum"
+
                     self.comp_dict[self.curr_comp]["I_f"] = I_fmasked
                     self.comp_dict[self.curr_comp]["Q_f"] = Q_fmasked
                     self.comp_dict[self.curr_comp]["U_f"] = U_fmasked
@@ -510,6 +527,8 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["V_f_init"] = V_fmasked
 
                     #get polarization fractions
+                    self.error = "Computing polarization..."
+                    t1 = time.time()
                     [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
                     self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                     self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
@@ -539,6 +558,7 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) + ') '
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) + ') '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2)) + ') '
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
                     self.curr_comp += 1
 
@@ -549,11 +569,14 @@ class pol_panel(param.Parameterized):
                     self.filt_weights_on = False
                     self.freq_samp_on = True
 
-
+                    self.error = "Computing Full Spectrum..."
+                    t1 = time.time()
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
-
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full spectrum"
 
                     #get total polarization
+                    self.error = "Computing total polarization..."
+                    t1 = time.time()
                     [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2)) 
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2)) 
@@ -569,7 +592,7 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) 
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) 
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
-
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full polarization"
 
 
                     self.STEP = 1
