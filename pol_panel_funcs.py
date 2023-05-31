@@ -271,6 +271,7 @@ class pol_panel(param.Parameterized):
     def load_FRB(self):
         try:
             if self.error=="Loading FRB...":
+                self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
                 t1 = time.time()
                 ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
                 nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
@@ -287,6 +288,10 @@ class pol_panel(param.Parameterized):
                 #time.sleep(5)
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
                 #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
+                self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
+                self.n_f = 1
+                self.n_f_prev = 1
+                self.n_t = 1
 
         except Exception as e:
             self.error = "From load_FRB(): " + str(e)
