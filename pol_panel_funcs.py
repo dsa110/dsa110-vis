@@ -314,7 +314,7 @@ class pol_panel(param.Parameterized):
                 self.complist_max.append(int(np.ceil(self.lo+self.comp_width)))
                 self.fixed_comps.append([int(np.floor(self.lo)),int(np.ceil(self.lo+self.comp_width))])
                 self.param.trigger('next_comp')
-            elif self.filt_weights_on and ( self.curr_comp < len(self.fixed_comps)-1):
+            elif self.filt_weights_on and ( self.curr_comp < len(self.fixed_comps)):
                 #save filter weights for current component
                 self.comp_dict[self.curr_comp] =dict()
                 self.comp_dict[self.curr_comp]["comp_num"] = self.curr_comp
@@ -357,18 +357,73 @@ class pol_panel(param.Parameterized):
 
 
                 #update displays
-                self.Tpol = r'{a}%'.format(a=np.around(100*avg_frac,2))
-                self.Lpol = r'{a}%'.format(a=np.around(100*avg_L,2))
-                self.absCpol = r'{a}%'.format(a=np.around(100*avg_C_abs,2))
-                self.Cpol = r'{a}%'.format(a=np.around(100*avg_C,2))
+                if self.curr_comp == 0 and len(self.fixed_comps) == 1:
+                    self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ') '
+                    self.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ') '
+                    self.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ') '
+                    self.Csnr = '(' + r'{a}'.format(a=np.around(snr_C,2))+ ') '
 
-                self.Tpolerr = r'{a}%'.format(a=np.around(100*sigma_frac,2))
-                self.Lpolerr = r'{a}%'.format(a=np.around(100*sigma_L,2))
-                self.absCpolerr = r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
-                self.Cpolerr = r'{a}%'.format(a=np.around(100*sigma_C,2))
+                    self.Tpol = '(' + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ') '
+                    self.Lpol = '(' + r'{a}%'.format(a=np.around(100*avg_L,2))+ ') '
+                    self.absCpol = '(' + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ') '
+                    self.Cpol = '('+ r'{a}%'.format(a=np.around(100*avg_C,2))+ ') '
 
+                    self.Tpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ') '
+                    self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ') '
+                    self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
+                    self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '                    
+                    self.curr_comp += 1
 
-                self.curr_comp += 1
+                elif self.curr_comp == 0 and len(self.fixed_comps) > 1:
+                    self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ' ; '
+                    self.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
+                    self.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ' ; '
+                    self.Csnr = '(' + r'{a}'.format(a=np.around(snr_C,2))+ ' ; '
+
+                    self.Tpol = '(' + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ' ; '
+                    self.Lpol = '(' + r'{a}%'.format(a=np.around(100*avg_L,2))+ ' ; '
+                    self.absCpol = '(' + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ' ; '
+                    self.Cpol = '('+ r'{a}%'.format(a=np.around(100*avg_C,2))+ ' ; '
+
+                    self.Tpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ' ; '
+                    self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
+                    self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
+                    self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+                    self.curr_comp += 1
+
+                elif self.curr_comp <  len(self.fixed_comps) -1 :
+
+                    self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))+ ' ; '
+                    self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
+                    self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))+ ' ; '
+                    self.Csnr = self.Csnr + r'{a}'.format(a=np.around(snr_C,2))+ ' ; '
+
+                    self.Tpol = self.Tpol + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ' ; '
+                    self.Lpol = self.Lpol + r'{a}%'.format(a=np.around(100*avg_L,2))+ ' ; '
+                    self.absCpol = self.absCpol + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ' ; '
+                    self.Cpol =self.Cpol + r'{a}%'.format(a=np.around(100*avg_C,2))+ ' ; '
+
+                    self.Tpolerr = self.Tpolerr + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ' ; '
+                    self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
+                    self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
+                    self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+                    self.curr_comp += 1
+                else:
+                    self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))+ ') '
+                    self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))+ ') '
+                    self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))+ ') '
+                    self.Csnr = self.Csnr + r'{a}'.format(a=np.around(snr_C,2))+ ') '
+
+                    self.Tpol = self.Tpol + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ') '
+                    self.Lpol = self.Lpol + r'{a}%'.format(a=np.around(100*avg_L,2))+ ') '
+                    self.absCpol = self.absCpol + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ') '
+                    self.Cpol =self.Cpol + r'{a}%'.format(a=np.around(100*avg_C,2))+ ') '
+
+                    self.Tpolerr = self.Tpolerr + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ') '
+                    self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ') '
+                    self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
+                    self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '
+                    self.error = "No more components, click Done"
                 self.param.trigger('next_comp')
 
         except Exception as e:
@@ -398,6 +453,38 @@ class pol_panel(param.Parameterized):
             elif self.filt_weights_on:
                 if ( self.curr_comp < len(self.fixed_comps)-1):
                     self.error = "Still have " + str(len(self.fixed_comps) - self.curr_comp) + " components left"
+                elif (self.curr_comp == len(self.fixed_comps)-1): #case where next was clicked before done
+                    self.curr_comp += 1
+                    #self.error = "Finishing " + str(self.curr_comp) + " " + str(len(self.fixed_comps))
+                    self.curr_weights = np.zeros(len(self.curr_weights))
+                    for i in range(len(self.fixed_comps)):
+                        self.curr_weights += self.comp_dict[i]["weights"]
+                    self.curr_weights = self.curr_weights/np.sum(self.curr_weights)
+
+                    self.filt_weights_on = False
+                    self.freq_samp_on = True
+
+                    (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
+
+                    #get total polarization
+                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                    self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))  
+                    self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))
+                    self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))
+                    self.Csnr = self.Csnr + r'{a}'.format(a=np.around(snr_C,2))
+
+                    self.Tpol = self.Tpol + r'{a}%'.format(a=np.around(100*avg_frac,2))
+                    self.Lpol = self.Lpol + r'{a}%'.format(a=np.around(100*avg_L,2))
+                    self.absCpol = self.absCpol + r'{a}%'.format(a=np.around(100*avg_C_abs,2))
+                    self.Cpol = self.Cpol + r'{a}%'.format(a=np.around(100*avg_C,2))
+
+                    self.Tpolerr = self.Tpolerr + r'{a}%'.format(a=np.around(100*sigma_frac,2))
+                    self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))
+                    self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
+                    self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
+
+
+                    self.STEP = 1
                 else:
                     #save filter weights for current component
                     self.comp_dict[self.curr_comp] =dict()
@@ -438,15 +525,20 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["I_snr"] = snr
 
                     #update displays
-                    self.Tpol = r'{a}%'.format(a=np.around(100*avg_frac,2))
-                    self.Lpol = r'{a}%'.format(a=np.around(100*avg_L,2))
-                    self.absCpol = r'{a}%'.format(a=np.around(100*avg_C_abs,2))
-                    self.Cpol = r'{a}%'.format(a=np.around(100*avg_C,2))
+                    self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))  + ') '
+                    self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2)) + ') '
+                    self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2)) + ') '
+                    self.Csnr = self.Csnr + r'{a}'.format(a=np.around(snr_C,2)) + ') '
 
-                    self.Tpolerr = r'{a}%'.format(a=np.around(100*sigma_frac,2))
-                    self.Lpolerr = r'{a}%'.format(a=np.around(100*sigma_L,2))
-                    self.absCpolerr = r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
-                    self.Cpolerr = r'{a}%'.format(a=np.around(100*sigma_C,2))
+                    self.Tpol = self.Tpol + r'{a}%'.format(a=np.around(100*avg_frac,2)) + ') '
+                    self.Lpol = self.Lpol + r'{a}%'.format(a=np.around(100*avg_L,2)) + ') '
+                    self.absCpol = self.absCpol + r'{a}%'.format(a=np.around(100*avg_C_abs,2)) + ') '
+                    self.Cpol = self.Cpol + r'{a}%'.format(a=np.around(100*avg_C,2)) + ') '
+
+                    self.Tpolerr = self.Tpolerr + r'{a}%'.format(a=np.around(100*sigma_frac,2)) + ') '
+                    self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) + ') '
+                    self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) + ') '
+                    self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2)) + ') '
 
                     self.curr_comp += 1
 
@@ -459,6 +551,26 @@ class pol_panel(param.Parameterized):
 
 
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
+
+
+                    #get total polarization
+                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                    self.snr = self.snr + r'{a}'.format(a=np.around(snr,2)) 
+                    self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2)) 
+                    self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2)) 
+                    self.Csnr = self.Csnr + r'{a}'.format(a=np.around(snr_C,2)) 
+
+                    self.Tpol = self.Tpol + r'{a}%'.format(a=np.around(100*avg_frac,2)) 
+                    self.Lpol = self.Lpol + r'{a}%'.format(a=np.around(100*avg_L,2)) 
+                    self.absCpol = self.absCpol + r'{a}%'.format(a=np.around(100*avg_C_abs,2)) 
+                    self.Cpol = self.Cpol + r'{a}%'.format(a=np.around(100*avg_C,2)) 
+
+                    self.Tpolerr = self.Tpolerr + r'{a}%'.format(a=np.around(100*sigma_frac,2)) 
+                    self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) 
+                    self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) 
+                    self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
+
+
 
                     self.STEP = 1
                 self.param.trigger('done')
@@ -475,15 +587,18 @@ class pol_panel(param.Parameterized):
 
 
     #polarization
+    snr = param.String(default="",label="S/N")
+    Tsnr = param.String(default="",label="T S/N")
     Tpol = param.String(default="",label="T/I")
     Tpolerr = param.String(default="",label="error")
+    Lsnr = param.String(default="",label="L S/N")
     Lpol = param.String(default="",label="L/I")
     Lpolerr = param.String(default="",label="error")
+    Csnr = param.String(default="",label="V S/N")
     absCpol = param.String(default="",label="|V|/I")
     absCpolerr = param.String(default="",label="error")
     Cpol = param.String(default="",label="V/I")
     Cpolerr = param.String(default="",label="error")
-
 
     #***FILTER WEIGHTS MODULE***#
     comp_dict = dict()
