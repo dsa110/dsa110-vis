@@ -41,6 +41,7 @@ from scipy.ndimage import convolve1d
 from RMtools_1D.do_RMsynth_1D import run_rmsynth
 from RMtools_1D.do_RMclean_1D import run_rmclean
 from RMtools_1D.do_QUfit_1D_mnest import run_qufit
+import csv
 
 plt.rcParams.update({
                     'font.size': 16,
@@ -217,6 +218,7 @@ class pol_panel(param.Parameterized):
     #param linked to dropdown menu
     #frb_submitted = param.String(default="")#param.Integer(default=0,bounds=(0,8),label=r'clicks')
     #frb_loaded = False
+    cal_name = param.String(default="")
     frb_name = param.String(default="")
     error = param.String(default="",label="output/errors")
     error2 = param.String(default="",label="tmp")
@@ -240,6 +242,12 @@ class pol_panel(param.Parameterized):
     fobj = None#fobj#None
     timeaxis = np.zeros(20480)#timeaxis#np.zeros(20480)
     freq_test_init = [np.zeros(6144)]*4
+    gxx = np.zeros(6144)
+    gyy = np.zeros(6144)
+    ibeam = 0
+    RA = 0
+    DEC = 0
+    ParA = -1
     wav_test = [np.zeros(6144)]*4
 
 
@@ -256,6 +264,7 @@ class pol_panel(param.Parameterized):
     log_n_f = param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
     n_f = 1
     n_f_prev = 1
+    n_f_root = 1
 
 
     #polarization display
@@ -298,6 +307,7 @@ class pol_panel(param.Parameterized):
                 #time.sleep(5)
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
                 #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
+                self.n_f_root = self.n_f
                 self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
                 self.n_f = 1
                 self.n_f_prev = 1
@@ -307,6 +317,46 @@ class pol_panel(param.Parameterized):
             self.error = "From load_FRB(): " + str(e)
         return
 
+
+    def cal_FRB(self):
+        if self.error=="Calibrating FRB...":
+            self.error = "Calibrating FRB...."
+            t1 = time.time()
+            with open("/media/ubuntu/ssd/sherman/code/" + self.cal_name,'r') as csvfile:
+                reader = csv.reader(csvfile,delimiter=",")
+                for row in reader:
+                    if row[0] == "|gxx|/|gyy|":
+                        tmp_ratio = np.array(row[1:],dtype="float")
+                    elif row[0] == "|gxx|/|gyy| fit":
+                        tmp_ratio_fit = np.array(row[1:],dtype="float")
+                    if row[0] == "phixx-phiyy":
+                        tmp_phase = np.array(row[1:],dtype="float")
+                    if row[0] == "phixx-phiyy fit":
+                        tmp_phase_fit = np.array(row[1:],dtype="float")
+                    if row[0] == "|gyy|":
+                        tmp_gainY = np.array(row[1:],dtype="float")
+                    if row[0] == "|gyy| FIT":
+                        tmp_gainY_fit = np.array(row[1:],dtype="float")
+                    if row[0] == "gxx":
+                        self.gxx = np.array(row[1:],dtype="complex")
+                    if row[0] == "gyy":
+                        self.gyy = np.array(row[1:],dtype="complex")
+                    if row[0] == "freq_axis":
+                        tmp_freq_axis = np.array(row[1:],dtype="float")
+
+            self.gxx = self.gxx[len(self.gxx)%self.n_f_root:]
+            self.gxx = self.gxx.reshape(len(self.gxx)//self.n_f_root,self.n_f_root).mean(1)
+
+            self.gyy = self.gyy[len(self.gyy)%self.n_f_root:]
+            self.gyy = self.gyy.reshape(len(self.gyy)//self.n_f_root,self.n_f_root).mean(1)
+
+            self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
+            self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
+
+            (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+
+
+            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to calibrate"
 
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
@@ -676,6 +726,8 @@ class pol_panel(param.Parameterized):
                 #self.error = "Loading FRB..."
                 self.load_FRB()
 
+            if self.error == "Calibrating FRB...":
+                self.cal_FRB()
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)
