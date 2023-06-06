@@ -105,7 +105,8 @@ from matplotlib.widgets import TextBox
 
 
 
-def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,maxcomps=4):
+def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,maxcomps=4):
+    
     fig = plt.figure(figsize=(20,24))
     ax = plt.subplot2grid(shape=(4, 2), loc=(0, 0),colspan=2)
 
@@ -130,7 +131,8 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
 
 
     #plot filterweights always
-    if filt_weights_on or freq_samp_on:
+    if (filt_weights_on or freq_samp_on) and (not wait):
+        ax.text(0,20,str(wait))
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
         ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
@@ -143,16 +145,24 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
     #print("check3")
     if filt_weights_on:
         for i in range(len(comp_dict.keys())):
-            print(i)
-            print(comp_dict[i])
-            print(comp_dict[i]["I_f"])
-            faxs[i].plot(freq_test[0],comp_dict[i]["I_f"],label="I")
-            faxs[i].plot(freq_test[0],comp_dict[i]["Q_f"],label="Q")
-            faxs[i].plot(freq_test[0],comp_dict[i]["U_f"],label="U")
-            faxs[i].plot(freq_test[0],comp_dict[i]["V_f"],label="V")
+            if "I_f" in comp_dict[i].keys():
+                #ax.text(100,25,"test")
+                #ax.text(100,25,str(i))
+                #ax.text(100,25,str("I_f" in comp_dict[i].keys()))
+                print(comp_dict[i].keys())
+                print(i)
+
+                faxs[i].plot(freq_test[0],comp_dict[i]["I_f"],label="I")
+                faxs[i].plot(freq_test[0],comp_dict[i]["Q_f"],label="Q")
+                faxs[i].plot(freq_test[0],comp_dict[i]["U_f"],label="U")
+                faxs[i].plot(freq_test[0],comp_dict[i]["V_f"],label="V")
     else:
         ax.set_xlim(0,timestop-timestart)
         #ax1.set_xlim(0,timestop-timestart)
+
+
+    if wait:
+        ax.set_xlim(0,timestop-timestart)
 
     ax.plot(I_t[timestart:timestop],label="I")
     ax.plot(Q_t[timestart:timestop],label="Q")
@@ -309,6 +319,7 @@ class pol_panel(param.Parameterized):
     comp_choose_on = False
     filt_weights_on = False
     freq_samp_on = False
+    wait = False
 
     fixed_comps = []
     complist_min = []
@@ -382,7 +393,6 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ') '
                     self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
                     self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '                    
-                    self.curr_comp += 1
 
                 elif self.curr_comp == 0 and len(self.fixed_comps) > 1:
                     self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ' ; '
@@ -467,15 +477,17 @@ class pol_panel(param.Parameterized):
                 if ( self.curr_comp < len(self.fixed_comps)-1):
                     self.error = "Still have " + str(len(self.fixed_comps) - self.curr_comp) + " components left"
                 elif (self.curr_comp == len(self.fixed_comps)-1): #case where next was clicked before done
+                    self.wait = True
                     self.curr_comp += 1
                     #self.error = "Finishing " + str(self.curr_comp) + " " + str(len(self.fixed_comps))
                     self.curr_weights = np.zeros(len(self.curr_weights))
                     for i in range(len(self.fixed_comps)):
+                        print("ADDING WEIGHTS TOGETHER " + str(len(self.fixed_comps)))
                         self.curr_weights += self.comp_dict[i]["weights"]
                     self.curr_weights = self.curr_weights/np.sum(self.curr_weights)
 
-                    self.filt_weights_on = False
-                    self.freq_samp_on = True
+                    #self.filt_weights_on = False
+                    #self.freq_samp_on = True
 
                     self.error = "Computing Spectrum..."
                     t1 = time.time()
@@ -504,6 +516,10 @@ class pol_panel(param.Parameterized):
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
                     self.STEP = 1
+                    
+                    self.filt_weights_on = False
+                    self.freq_samp_on = True
+                    self.wait = False
                 else:
                     #save filter weights for current component
                     self.comp_dict[self.curr_comp] =dict()
@@ -571,8 +587,8 @@ class pol_panel(param.Parameterized):
                     for i in range(len(self.fixed_comps)):
                         self.curr_weights += self.comp_dict[i]["weights"]
                     self.curr_weights = self.curr_weights/np.sum(self.curr_weights)
-                    self.filt_weights_on = False
-                    self.freq_samp_on = True
+                    #self.filt_weights_on = False
+                    #self.freq_samp_on = True
 
                     self.error = "Computing Full Spectrum..."
                     t1 = time.time()
@@ -599,13 +615,15 @@ class pol_panel(param.Parameterized):
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full polarization"
 
+                    self.filt_weights_on = False
+                    self.freq_samp_on = True
 
                     self.STEP = 1
                 self.param.trigger('done')
 
         except Exception as e:
             self.error2 = "From clicked_done(): " + str(e)
-            time.sleep(60)
+            #self.error2 = "From clicked_done(): " + str(len(self.fixed_comps)) + str(self.curr_comp)
         return
     #up = param.Action(clicked_up)#clicked)
     #down = param.Action(clicked_down)
@@ -692,7 +710,7 @@ class pol_panel(param.Parameterized):
             self.V_t = self.V_t.reshape(len(self.V_t)//self.n_t,self.n_t).mean(1)
 
             #compute weights
-            if self.filt_weights_on:
+            if self.filt_weights_on and self.curr_comp < len(self.fixed_comps):
                 for i in range(len(self.fixed_comps)):
                     if i != self.curr_comp:
                         mask = np.zeros(len(self.I_t))
@@ -736,8 +754,10 @@ class pol_panel(param.Parameterized):
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
-            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on)
+            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait)
         except Exception as e:
+            print("HERE I AM")
+            print(str(e))
             self.error = "From view3(): " + str(e)
         return
 
