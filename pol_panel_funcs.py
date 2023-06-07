@@ -840,7 +840,7 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
         print("not weighted: " + str(noise))
     return noise
 
-def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,init_RM,fine_RM):
+def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM):
     fig = plt.figure(figsize=(20,24))
     ax1 = plt.subplot2grid(shape=(2, 2), loc=(0, 0),colspan=2)
     ax2 = plt.subplot2grid(shape=(2, 2), loc=(1, 0),colspan=2)
@@ -862,6 +862,8 @@ def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,i
     #FINE SYNTHESIS
     if fine_RM:
         ax2_1.plot(trial_RMzoom,RMsnrszoom,label="RM synthesis",color="black")
+        ax2_1.plot(trial_RM_tools_zoom,RMsnrstoolszoom,label="RM Tools",color="blue",alpha=0.5)
+        ax2.plot(trial_RMzoom,RMsnrs2zoom,label="S/N Method",color="orange",linewidth=2)
         ax2_1.legend(loc="upper right")
     return fig
 
@@ -882,6 +884,8 @@ class RM_panel(param.Parameterized):
 
     freq_test_init = [np.zeros(6144)]*4
     n_t = 1
+    n_f = 1
+    fobj = None
     curr_weights = np.nan*np.ones(20480)
     timestart = -1
     timestop = -1
@@ -908,9 +912,17 @@ class RM_panel(param.Parameterized):
     numRMtrials_zoom = param.String(default="5000",label=r'Number of Trial RMs (Fine)')
     zoom_window = param.String(default="1000",label=r'RM range above/below initial result (rad/m^2)')
     trial_RM2 = np.linspace(0-1000,0+1000,5000)
+    trial_RM_tools_zoom = copy.deepcopy(trial_RM2)
     RMsnrs1zoom = np.nan*np.ones(len(trial_RM2))
-    RM1zoom = param.String(default="",label=r'Final RM Synthesis (rad/m^2)')
+    RM1zoom = param.String(default="",label=r'Fine RM Synthesis RM (rad/m^2)')
     RMerr1zoom = param.String(default="",label=r'error (rad/m^2)')
+    RMtools_zoom_flag = True
+    RM1tools_zoom = param.String(default="",label=r'Fine RM-Tools RM (rad/m^2)')
+    RMerr1tools_zoom = param.String(default="",label=r'error (rad/m^2)')
+    RMsnrs1tools_zoom = np.nan*np.ones(np.min([len(trial_RM2),int(1e4)]))
+    RMsnrs2zoom = np.nan*np.ones(len(trial_RM2))
+    RM2zoom = param.String(default="",label=r'Fine S/N Method RM (rad/m^2)')
+    RMerr2zoom = param.String(default="",label=r'error (rad/m^2)')
 
     def clicked_run(self):
         try:
@@ -987,11 +999,61 @@ class RM_panel(param.Parameterized):
                 self.RMerr1zoom = str(np.around(FWHMRM1zoom[0]*(self.trial_RM2[1]-self.trial_RM2[0])*noisezoom/(2*np.max(self.RMsnrs1zoom)),2))
 
 
+                #check if RM in range for RM tools
+                self.RMtools_zoom_flag = np.abs(float(self.RM1zoom)) < 1000
+                if not self.RMtools_zoom_flag:
+                    self.error = "RM out of range for RM tools...skipping"
+                else:
+                    self.error = "Running fine RM tools..."
 
-                self.error = "Running fine RM tools..."
+                    n_off = int(12000/self.n_t)
+
+                    Ierr = np.std(self.I[:,:n_off],axis=1)
+                    Ierr[Ierr.mask] = np.nan
+                    Ierr = Ierr.data
+
+                    Qerr = np.std(self.Q[:,:n_off],axis=1)
+                    Qerr[Qerr.mask] = np.nan
+                    Qerr = Qerr.data
+
+                    Uerr = np.std(self.U[:,:n_off],axis=1)
+                    Uerr[Uerr.mask] = np.nan
+                    Uerr = Uerr.data
+
+                    I_fcal_rmtools = self.I_f.data
+                    I_fcal_rmtools[self.I_f.mask] = np.nan
+
+                    Q_fcal_rmtools = self.Q_f.data
+                    Q_fcal_rmtools[self.Q_f.mask] = np.nan
+
+                    U_fcal_rmtools = self.U_f.data
+                    U_fcal_rmtools[self.U_f.mask] = np.nan
+
+                    if len(self.trial_RM2) <= 1e4:
+                        self.trial_RM_tools_zoom = copy.deepcopy(self.trial_RM2)
+                    else:
+                        self.error = "Using maximum 1e4 trials for RM tools..."
+                        self.trial_RM_tools_zoom = np.linspace(np.min(self.trial_RM2),np.max(self.trial_RM2),int(1e4))
+                    out=run_rmsynth([self.freq_test[0]*1e6,I_fcal_rmtools,Q_fcal_rmtools,U_fcal_rmtools,Ierr,Qerr,Uerr],phiMax_radm2=np.max(np.abs(self.trial_RM_tools_zoom)),dPhi_radm2=np.abs(self.trial_RM_tools_zoom[1]-self.trial_RM_tools_zoom[0]))
+
+                    self.error = "RM Cleaning..."
+                    out=run_rmclean(out[0],out[1],2)
+
+                    self.trial_RM_tools_zoom = out[1]["phiArr_radm2"]
+                    self.RMsnrs1tools_zoom = np.abs(out[1]["cleanFDF"])
+                    self.RM1tools_zoom = str(np.around(out[0]["phiPeakPIchan_rm2"],2))
+                    self.RMerr1tools_zoom = str(np.around(out[0]["dPhiPeakPIchan_rm2"],2))
+
+
 
                 self.error = "Running fine S/N method..."
+                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart,timestop_in=self.timestop)
 
+                fit_window=50
+                oversamps = 5000
+                poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],p0=[1,1,RM2],sigma=1/self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window])
+                self.RM2zoom = str(np.around(poptpar[2],2))
+                self.RMerr2zoom = dsapol.RM_error_fit(np.max(self.RMsnrs2zoom))
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
 
@@ -1009,7 +1071,7 @@ class RM_panel(param.Parameterized):
             #update trial RM
             self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
 
-            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.init_RM,self.fine_RM)
+            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM)
         except Exception as e:
             self.error = "From view(): " + str(e)
             return
