@@ -106,7 +106,7 @@ from matplotlib.widgets import TextBox
 
 
 
-def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,maxcomps=4):
+def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
     ax = plt.subplot2grid(shape=(4, 2), loc=(0, 0),colspan=2)
@@ -142,6 +142,23 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
         peak = np.argmax(I_t[timestart:timestop])
         ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
 
+    if filt_weights_on:
+        if multipeaks and height < np.max(I_t):
+            pks,props = find_peaks((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],height=height)
+            FWHM,heights,intL,intR = peak_widths((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],pks)
+            intL = int(intL[0])
+            intR = int(intR[-1])
+            ax.axhline(height,color="red",linestyle="--")
+        elif multipeaks:
+            intL = np.nan
+            intR = np.nan
+            ax.axhline(height,color="red",linestyle="--")
+        else:
+            FWHM,heights,intL,intR = peak_widths(I_t_weights[timestart:timestop],[np.argmax(I_t_weights[timestart:timestop])])
+            intL = int(intL)
+            intR = int(intR)
+        ax.axvline(intL,color="red",linestyle="--")
+        ax.axvline(intR,color="red",linestyle="--")
 
     #print("check3")
     if filt_weights_on:
@@ -370,6 +387,9 @@ class pol_panel(param.Parameterized):
     filt_weights_on = False
     freq_samp_on = False
     wait = False
+    multipeaks = param.Boolean(False)
+    height = param.Number(default=5,bounds=(0,50),step=1e-2)
+    
 
     fixed_comps = []
     complist_min = []
@@ -396,6 +416,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["mask_start"] = self.complist_min[self.curr_comp]
                 self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                 self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
+                self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
 
                 #get spectrum for current component
                 self.error = "Computing Spectrum..."
@@ -416,7 +437,7 @@ class pol_panel(param.Parameterized):
                 #get polarization fractions
                 self.error = "Computing polarization..."
                 t1 = time.time()
-                [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                 self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                 self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
                 self.comp_dict[self.curr_comp]["T/I_pre_snr"] = snr_frac
@@ -550,9 +571,12 @@ class pol_panel(param.Parameterized):
 
 
                     #get total polarization
-                    self.error = "Computing polarization"
+                    self.error = "Computing polarization..."
+
+                    multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
+
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))  
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))
                     self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))
@@ -589,6 +613,7 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["mask_start"] = self.complist_min[self.curr_comp]
                     self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                     self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
+                    self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
 
                     self.error = "Computing Spectrum..."
                     t1 = time.time()
@@ -608,7 +633,7 @@ class pol_panel(param.Parameterized):
                     #get polarization fractions
                     self.error = "Computing polarization..."
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                     self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
                     self.comp_dict[self.curr_comp]["T/I_pre_snr"] = snr_frac
@@ -655,8 +680,11 @@ class pol_panel(param.Parameterized):
 
                     #get total polarization
                     self.error = "Computing total polarization..."
+
+                    multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
+
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=False,height=0.03,input_weights=self.curr_weights)
+                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2)) 
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2)) 
                     self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2)) 
@@ -819,7 +847,7 @@ class pol_panel(param.Parameterized):
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
-            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait)
+            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height)
         except Exception as e:
             print("HERE I AM")
             print(str(e))
