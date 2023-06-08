@@ -133,7 +133,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
 
     #plot filterweights always
     if (filt_weights_on or freq_samp_on) and (not wait):
-        ax.text(0,20,str(wait))
+        #ax.text(0,20,str(wait))
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
         ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
@@ -384,6 +384,10 @@ class pol_panel(param.Parameterized):
             elif self.filt_weights_on and ( self.curr_comp < len(self.fixed_comps)):
                 #save filter weights for current component
                 self.comp_dict[self.curr_comp] =dict()
+                #get actual timestart, timestop
+                peak,t1,t2 = dsapol.find_peak([self.I_t,self.I_t],self.ibox,self.fobj.header.tsamp,self.n_t,peak_range=None,pre_calc_tf=True,buff=[self.buff_L,self.buff_R])
+                self.comp_dict[self.curr_comp]["timestart"] = t1
+                self.comp_dict[self.curr_comp]["timestop"] = t2
                 self.comp_dict[self.curr_comp]["comp_num"] = self.curr_comp
                 self.comp_dict[self.curr_comp]["buff"] = [self.buff_L,self.buff_R]
                 self.comp_dict[self.curr_comp]["n_t_weight"] = self.n_t_weight
@@ -573,6 +577,10 @@ class pol_panel(param.Parameterized):
                 else:
                     #save filter weights for current component
                     self.comp_dict[self.curr_comp] =dict()
+                    #get actual timestart, timestop
+                    peak,t1,t2 = dsapol.find_peak([self.I_t,self.I_t],self.ibox,self.fobj.header.tsamp,self.n_t,peak_range=None,pre_calc_tf=True,buff=[self.buff_L,self.buff_R])
+                    self.comp_dict[self.curr_comp]["timestart"] = t1
+                    self.comp_dict[self.curr_comp]["timestop"] = t2
                     self.comp_dict[self.curr_comp]["comp_num"] = self.curr_comp
                     self.comp_dict[self.curr_comp]["buff"] = [self.buff_L,self.buff_R]
                     self.comp_dict[self.curr_comp]["n_t_weight"] = self.n_t_weight
@@ -773,6 +781,11 @@ class pol_panel(param.Parameterized):
                         self.Q_t = ma.masked_array(self.Q_t,mask)
                         self.U_t = ma.masked_array(self.U_t,mask)
                         self.V_t = ma.masked_array(self.V_t,mask)
+
+                        #get actual timestart, timestop
+                        #peak,t1,t2 = dsapol.find_peak([self.I_t,self.I_t],self.ibox,self.fobj.header.tsamp,self.n_t,peak_range=None,pre_calc_tf=True,buff=[self.buff_L,self.buff_R])
+                        #self.comp_dict[self.curr_comp]["timestart"] = t1
+                        #self.comp_dict[self.curr_comp]["timestop"] = t2
                 self.curr_weights = dsapol.get_weights_1D(self.I_t,self.Q_t,self.U_t,self.V_t,-1,-1,self.ibox,self.fobj.header.tsamp,self.n_f,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),buff=[self.buff_L,self.buff_R],n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,padded=True,norm=False,timeaxis=self.timeaxis,fobj=self.fobj)
         #except Exception as e:
         #    self.error = "From view1(): " + str(e)
@@ -840,7 +853,7 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
         print("not weighted: " + str(noise))
     return noise
 
-def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM):
+def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM,RM,RMerror,threshold=9):
     fig = plt.figure(figsize=(20,24))
     ax1 = plt.subplot2grid(shape=(2, 2), loc=(0, 0),colspan=2)
     ax2 = plt.subplot2grid(shape=(2, 2), loc=(1, 0),colspan=2)
@@ -861,10 +874,31 @@ def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,R
 
     #FINE SYNTHESIS
     if fine_RM:
-        ax2_1.plot(trial_RMzoom,RMsnrszoom,label="RM synthesis",color="black")
-        ax2_1.plot(trial_RM_tools_zoom,RMsnrstoolszoom,label="RM Tools",color="blue",alpha=0.5)
-        ax2.plot(trial_RMzoom,RMsnrs2zoom,label="S/N Method",color="orange",linewidth=2)
-        ax2_1.legend(loc="upper right")
+        lns = []
+        labs = []
+        if len(trial_RMzoom) == len(RMsnrszoom):
+            l=ax2_1.plot(trial_RMzoom,RMsnrszoom,label="RM synthesis",color="black")
+            lns.append(l[0])
+            labs.append(l[0].get_label())
+        if len(trial_RM_tools_zoom) == len(RMsnrstoolszoom):
+            l=ax2_1.plot(trial_RM_tools_zoom,RMsnrstoolszoom,label="RM Tools",color="blue",alpha=0.5)
+            lns.append(l[0])
+            labs.append(l[0].get_label())
+        if len(trial_RMzoom) == len(RMsnrs2zoom):
+            l=ax2.plot(trial_RMzoom,RMsnrs2zoom,label="S/N Method",color="orange",linewidth=2)
+            lns.append(l[0])
+            labs.append(l[0].get_label())
+            
+            l=ax2.axvline(RM+RMerror,color="red",label="RM Error",linewidth=2)
+            ax2.axvline(RM-RMerror,color="red",linewidth=2)
+            lns.append(l)
+            labs.append(l.get_label())
+
+
+        l=ax2.axhline(threshold,color="purple",linestyle="--",label=r'${t}\sigma$ threshold'.format(t=threshold),linewidth=2)
+        lns.append(l)
+        labs.append(l.get_label())
+        ax2_1.legend(lns,labs,loc="upper right")
     return fig
 
 
@@ -887,9 +921,11 @@ class RM_panel(param.Parameterized):
     n_f = 1
     fobj = None
     curr_weights = np.nan*np.ones(20480)
-    timestart = -1
-    timestop = -1
-
+    timestarts = []
+    timestops = []
+    timestart_in = 0
+    timestop_in = 0
+    comp_dict = dict()
 
     #***Initial RM synthesis + Rm tools***#
     init_RM = True
@@ -982,7 +1018,7 @@ class RM_panel(param.Parameterized):
 
                 self.init_RM = False
                 self.fine_RM = True
-            else:
+            elif self.fine_RM:
                 self.error = "Running fine RM synthesis..."
                 t1 = time.time()
 
@@ -1047,18 +1083,26 @@ class RM_panel(param.Parameterized):
 
 
                 self.error = "Running fine S/N method..."
-                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart,timestop_in=self.timestop)
+
+                for i in self.comp_dict.keys():
+                    self.timestarts.append(self.comp_dict[i]["timestart"])
+                    self.timestops.append(self.comp_dict[i]["timestop"])
+                self.timestart_in = np.min(self.timestarts)
+                self.timestop_in = np.max(self.timestops)
+
+                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
+
 
                 fit_window=50
                 oversamps = 5000
                 poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],p0=[1,1,RM2],sigma=1/self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window])
                 self.RM2zoom = str(np.around(poptpar[2],2))
-                self.RMerr2zoom = dsapol.RM_error_fit(np.max(self.RMsnrs2zoom))
+                self.RMerr2zoom = str(np.around(dsapol.RM_error_fit(np.max(self.RMsnrs2zoom)),2))
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
 
         except Exception as e:
-            self.error = "From clicked_run(): " + str(e)
+            self.error = "From clicked_run(): " + str(e) + " " + str(len(self.curr_weights)) + " " + str(len(np.trim_zeros(self.curr_weights))) + " " + str(self.timestop_in-self.timestart_in)
         return
 
     run = param.Action(clicked_run,label="Run")
@@ -1070,8 +1114,16 @@ class RM_panel(param.Parameterized):
         try:
             #update trial RM
             self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
-
-            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM)
+            if self.RM1 != "":
+                self.trial_RM2 = np.linspace(float(self.RM1)-float(self.zoom_window),float(self.RM1)+float(self.zoom_window),int(self.numRMtrials_zoom))
+            if self.RM2zoom == "" or self.RMerr2zoom=="":
+                rm = np.nan
+                rmerr = np.nan
+            else:
+                rm = float(self.RM2zoom)
+                rmerr = float(self.RMerr2zoom)
+            
+            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM,rm,rmerr)
         except Exception as e:
-            self.error = "From view(): " + str(e)
+            self.error = "From view(): " + str(e) + " " + str(len(self.trial_RM2)) + " " + str(len(self.RMsnrs2zoom))
             return
