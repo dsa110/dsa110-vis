@@ -295,10 +295,10 @@ class pol_panel(param.Parameterized):
     U_t = np.nan*np.ones(I.shape[1])
     V_t = np.nan*np.ones(I.shape[1])
 
-    I_f_init = I.mean(1)#np.zeros(I.shape[0])
-    Q_f_init = Q.mean(1)#np.zeros(Q.shape[0])
-    U_f_init = U.mean(1)#np.zeros(U.shape[0])
-    V_f_init = V.mean(1)#np.zeros(V.shape[0])
+    I_f_init = np.nan*np.ones(I.shape[0])#I.mean(1)#np.zeros(I.shape[0])
+    Q_f_init = np.nan*np.ones(I.shape[0])#Q.mean(1)#np.zeros(Q.shape[0])
+    U_f_init = np.nan*np.ones(I.shape[0])#U.mean(1)#np.zeros(U.shape[0])
+    V_f_init = np.nan*np.ones(I.shape[0])#V.mean(1)#np.zeros(V.shape[0])
 
 
 
@@ -521,7 +521,7 @@ class pol_panel(param.Parameterized):
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
                 self.param.trigger('next_comp')
-
+            self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
         except Exception as e:
             self.error = "From clicked_next(): " + str(e)
 
@@ -944,7 +944,7 @@ class RM_panel(param.Parameterized):
     U_f = np.nan*np.ones(6144)
     V_f = np.nan*np.ones(6144)
 
-    freq_test_init = [np.zeros(6144)]*4
+    freq_test = [np.zeros(6144)]*4
     n_t = 1
     n_f = 1
     fobj = None
@@ -954,6 +954,7 @@ class RM_panel(param.Parameterized):
     timestart_in = 0
     timestop_in = 0
     comp_dict = dict()
+    curr_comp = 0
 
     #***Initial RM synthesis + Rm tools***#
     init_RM = True
@@ -1049,6 +1050,16 @@ class RM_panel(param.Parameterized):
             elif self.fine_RM:
                 self.error = "Running fine RM synthesis..."
                 t1 = time.time()
+                
+                for i in self.comp_dict.keys():
+                    self.timestarts.append(self.comp_dict[i]["timestart"])
+                    self.timestops.append(self.comp_dict[i]["timestop"])
+                if self.curr_comp == -1:
+                    self.timestart_in = np.min(self.timestarts)
+                    self.timestop_in = np.max(self.timestops)
+                else:
+                    self.timestart_in = self.timestarts[-1]
+                    self.timestop_in = self.timestops[-1]
 
                 self.trial_RM2 = np.linspace(float(self.RM1)-float(self.zoom_window),float(self.RM1)+float(self.zoom_window),int(self.numRMtrials_zoom))
 
@@ -1058,7 +1069,7 @@ class RM_panel(param.Parameterized):
                 oversamps = 5000
                 poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],p0=[1,1,float(self.RM1)],sigma=1/self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window])
                 FWHMRM1zoom,tmp,tmp,tmp = peak_widths(self.RMsnrs1zoom,[np.argmax(self.RMsnrs1zoom)])
-                noisezoom = L_sigma(self.Q,self.U,self.timestart,self.timestop,plot=False,weighted=True,I_w_t_filt=self.curr_weights)
+                noisezoom = L_sigma(self.Q,self.U,self.timestart_in,self.timestop_in,plot=False,weighted=True,I_w_t_filt=self.curr_weights)
                 self.RM1zoom = str(np.around(poptpar[2],2))
                 self.RMerr1zoom = str(np.around(FWHMRM1zoom[0]*(self.trial_RM2[1]-self.trial_RM2[0])*noisezoom/(2*np.max(self.RMsnrs1zoom)),2))
 
@@ -1112,11 +1123,6 @@ class RM_panel(param.Parameterized):
 
                 self.error = "Running fine S/N method..."
 
-                for i in self.comp_dict.keys():
-                    self.timestarts.append(self.comp_dict[i]["timestart"])
-                    self.timestops.append(self.comp_dict[i]["timestop"])
-                self.timestart_in = np.min(self.timestarts)
-                self.timestop_in = np.max(self.timestops)
 
                 RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
 
@@ -1130,7 +1136,8 @@ class RM_panel(param.Parameterized):
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
 
         except Exception as e:
-            self.error = "From clicked_run(): " + str(e) + " " + str(len(self.curr_weights)) + " " + str(len(np.trim_zeros(self.curr_weights))) + " " + str(self.timestop_in-self.timestart_in)
+            #self.error = "From clicked_run(): " + str(e) + " " + str(len(self.curr_weights)) + " " + str(len(np.trim_zeros(self.curr_weights))) + " " + str(self.timestop_in-self.timestart_in)
+            self.error = "From clicked_run(): " + str(e) + " " + str(len(self.I_f)) + " " + str(len(self.freq_test))
         return
 
     run = param.Action(clicked_run,label="Run")
