@@ -502,7 +502,7 @@ class pol_panel(param.Parameterized):
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
                     self.curr_comp += 1
-                else:
+                elif self.curr_comp == len(self.fixed_comps) - 1:
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))+ ') '
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))+ ') '
                     self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))+ ') '
@@ -964,10 +964,14 @@ class RM_panel(param.Parameterized):
     trial_RM = np.linspace(-1e6,1e6,1000)
     trial_RM_tools = copy.deepcopy(trial_RM)
     trial_phi = [0]
-    RM1 = param.String(default="",label=r'Initial RM (rad/m^2)')
-    RMerr1 = param.String(default="",label=r'error (rad/m^2)')
-    RM1tools = param.String(default="",label=r'Initial RM-Tools RM (rad/m^2)')
-    RMerr1tools = param.String(default="",label=r'error (rad/m^2)')
+    RM1_str = param.String(default="",label=r'Initial RM (rad/m^2)')
+    RMerr1_str = param.String(default="",label=r'error (rad/m^2)')
+    RM1 = 0.0
+    RMerr1 = 0.0
+    RM1tools_str = param.String(default="",label=r'Initial RM-Tools RM (rad/m^2)')
+    RMerr1tools_str = param.String(default="",label=r'error (rad/m^2)')
+    RM1tools = 0.0
+    RMerr1tools = 0.0
     RMsnrs1 = np.nan*np.ones(len(trial_RM))
     RMsnrs1tools = np.nan*np.ones(np.min([len(trial_RM),int(1e4)]))
     RMmin = param.String(default="-1000000",label=r'Minimum Trial RM (rad/m^2)')
@@ -981,15 +985,21 @@ class RM_panel(param.Parameterized):
     trial_RM2 = np.linspace(0-1000,0+1000,5000)
     trial_RM_tools_zoom = copy.deepcopy(trial_RM2)
     RMsnrs1zoom = np.nan*np.ones(len(trial_RM2))
-    RM1zoom = param.String(default="",label=r'Fine RM Synthesis RM (rad/m^2)')
-    RMerr1zoom = param.String(default="",label=r'error (rad/m^2)')
+    RM1zoom_str = param.String(default="",label=r'Fine RM Synthesis RM (rad/m^2)')
+    RMerr1zoom_str = param.String(default="",label=r'error (rad/m^2)')
+    RM1zoom = 0.0
+    RMerr1zoom = 0.0
     RMtools_zoom_flag = True
-    RM1tools_zoom = param.String(default="",label=r'Fine RM-Tools RM (rad/m^2)')
-    RMerr1tools_zoom = param.String(default="",label=r'error (rad/m^2)')
+    RM1tools_zoom_str = param.String(default="",label=r'Fine RM-Tools RM (rad/m^2)')
+    RMerr1tools_zoom_str = param.String(default="",label=r'error (rad/m^2)')
+    RM1tools_zoom = 0.0
+    RMerr1tools_zoom = 0.0
     RMsnrs1tools_zoom = np.nan*np.ones(np.min([len(trial_RM2),int(1e4)]))
     RMsnrs2zoom = np.nan*np.ones(len(trial_RM2))
-    RM2zoom = param.String(default="",label=r'Fine S/N Method RM (rad/m^2)')
-    RMerr2zoom = param.String(default="",label=r'error (rad/m^2)')
+    RM2zoom_str = param.String(default="",label=r'Fine S/N Method RM (rad/m^2)')
+    RMerr2zoom_str = param.String(default="",label=r'error (rad/m^2)')
+    RM2zoom = 0.0
+    RMerr2zoom = 0.0
 
     def clicked_run(self):
         try:
@@ -997,9 +1007,19 @@ class RM_panel(param.Parameterized):
                 self.error = "Running initial RM synthesis..."
                 t1 = time.time()
                 self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
-                RM1,phi1,self.RMsnrs1,RMerr1 = dsapol.faradaycal(self.I_f,self.Q_f,self.U_f,self.V_f,self.freq_test,self.trial_RM,self.trial_phi,plot=False,show=False,fit_window=100,err=True)
-                self.RM1 = str(np.around(RM1,2))
-                self.RMerr1 = str(np.around(RMerr1,2))
+                self.RM1,phi1,self.RMsnrs1,self.RMerr1 = dsapol.faradaycal(self.I_f,self.Q_f,self.U_f,self.V_f,self.freq_test,self.trial_RM,self.trial_phi,plot=False,show=False,fit_window=100,err=True)
+                
+                if (self.RM1_str == "") and (self.curr_comp != -1):
+                    self.RM1_str ="(" + str(np.around(self.RM1,2))
+                    self.RMerr1_str = "(" + str(np.around(self.RMerr1,2))
+                elif self.curr_comp != -1:
+                    self.RM1_str = self.RM1_str + " ; " + str(np.around(self.RM1,2))
+                    self.RMerr1_str = self.RMerr1_str + " ; " + str(np.around(self.RMerr1,2))
+                elif self.curr_comp == -1:
+                    self.RM1_str = self.RM1_str + ") " + str(np.around(self.RM1,2))
+                    self.RMerr1_str = self.RMerr1_str + ") " + str(np.around(self.RMerr1,2))
+
+
 
                 self.error = "Running initial RM tools..."
                 #trial_RM_tools = np.linspace(-1e6,1e6,int(1e4))
@@ -1041,9 +1061,17 @@ class RM_panel(param.Parameterized):
 
                 self.trial_RM_tools = out[1]["phiArr_radm2"]
                 self.RMsnrs1tools = np.abs(out[1]["cleanFDF"])
-                self.RM1tools = str(np.around(out[0]["phiPeakPIchan_rm2"],2))
-                self.RMerr1tools = str(np.around(out[0]["dPhiPeakPIchan_rm2"],2))
-
+                self.RM1tools = out[0]["phiPeakPIchan_rm2"]
+                self.RMerr1tools = out[0]["dPhiPeakPIchan_rm2"]
+                if (self.RM1tools_str == "") and (self.curr_comp != -1):
+                    self.RM1tools_str ="(" + str(np.around(self.RM1tools,2))
+                    self.RMerr1tools_str = "(" + str(np.around(self.RMerr1tools,2))
+                elif self.curr_comp != -1:
+                    self.RM1tools_str = self.RM1tools_str + " ; " + str(np.around(self.RM1tools,2))
+                    self.RMerr1tools_str = self.RMerr1tools_str + " ; " + str(np.around(self.RMerr1tools,2))
+                elif self.curr_comp == -1:
+                    self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
+                    self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run initial RM synthesis"
 
@@ -1072,8 +1100,19 @@ class RM_panel(param.Parameterized):
                 poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],p0=[1,1,float(self.RM1)],sigma=1/self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window])
                 FWHMRM1zoom,tmp,tmp,tmp = peak_widths(self.RMsnrs1zoom,[np.argmax(self.RMsnrs1zoom)])
                 noisezoom = L_sigma(self.Q,self.U,self.timestart_in,self.timestop_in,plot=False,weighted=True,I_w_t_filt=self.curr_weights)
-                self.RM1zoom = str(np.around(poptpar[2],2))
-                self.RMerr1zoom = str(np.around(FWHMRM1zoom[0]*(self.trial_RM2[1]-self.trial_RM2[0])*noisezoom/(2*np.max(self.RMsnrs1zoom)),2))
+                self.RM1zoom = poptpar[2]
+                self.RMerr1zoom = FWHMRM1zoom[0]*(self.trial_RM2[1]-self.trial_RM2[0])*noisezoom/(2*np.max(self.RMsnrs1zoom))
+
+                if (self.RM1zoom_str == "") and (self.curr_comp != -1):
+                    self.RM1zoom_str ="(" + str(np.around(self.RM1zoom,2))
+                    self.RMerr1zoom_str = "(" + str(np.around(self.RMerr1zoom,2))
+                elif self.curr_comp != -1:
+                    self.RM1zoom_str = self.RM1zoom_str + " ; " + str(np.around(self.RM1zoom,2))
+                    self.RMerr1zoom_str = self.RMerr1zoom_str + " ; " + str(np.around(self.RMerr1zoom,2))
+                elif self.curr_comp == -1:
+                    self.RM1zoom_str = self.RM1zoom_str + ") " + str(np.around(self.RM1zoom,2))
+                    self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
+
 
 
                 #check if RM in range for RM tools
@@ -1118,8 +1157,17 @@ class RM_panel(param.Parameterized):
 
                     self.trial_RM_tools_zoom = out[1]["phiArr_radm2"]
                     self.RMsnrs1tools_zoom = np.abs(out[1]["cleanFDF"])
-                    self.RM1tools_zoom = str(np.around(out[0]["phiPeakPIchan_rm2"],2))
-                    self.RMerr1tools_zoom = str(np.around(out[0]["dPhiPeakPIchan_rm2"],2))
+                    self.RM1tools_zoom = out[0]["phiPeakPIchan_rm2"]
+                    self.RMerr1tools_zoom = out[0]["dPhiPeakPIchan_rm2"]
+                    if (self.RM1tools_zoom_str == "") and (self.curr_comp != -1):
+                        self.RM1tools_zoom_str ="(" + str(np.around(self.RM1tools_zoom,2))
+                        self.RMerr1tools_zoom_str = "(" + str(np.around(self.RMerr1tools_zoom,2))
+                    elif self.curr_comp != -1:
+                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + " ; " + str(np.around(self.RM1tools_zoom,2))
+                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + " ; " + str(np.around(self.RMerr1tools_zoom,2))
+                    elif self.curr_comp == -1:
+                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
+                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
 
 
 
@@ -1132,9 +1180,29 @@ class RM_panel(param.Parameterized):
                 fit_window=50
                 oversamps = 5000
                 poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],p0=[1,1,RM2],sigma=1/self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window])
-                self.RM2zoom = str(np.around(poptpar[2],2))
-                self.RMerr2zoom = str(np.around(dsapol.RM_error_fit(np.max(self.RMsnrs2zoom)),2))
+                self.RM2zoom = poptpar[2]
+                self.RMerr2zoom = dsapol.RM_error_fit(np.max(self.RMsnrs2zoom))
+                if (self.RM2zoom_str == "") and (self.curr_comp != -1):
+                    self.RM2zoom_str ="(" + str(np.around(self.RM2zoom,2))
+                    self.RMerr2zoom_str = "(" + str(np.around(self.RMerr2zoom,2))
+                    self.comp_dict[self.curr_comp]["RM"] = self.RM2zoom
+                    self.comp_dict[self.curr_comp]["RMerr"] = self.RMerr2zoom
+                    self.comp_dict[self.curr_comp]["RMsnrs"] = copy.deepcopy(self.RMsnrs2zoom)
+                    self.comp_dict[self.curr_comp]["trialRMs"] = copy.deepcopy(self.trial_RM2)
+                elif self.curr_comp != -1:
+                    self.RM2zoom_str = self.RM2zoom_str + " ; " + str(np.around(self.RM2zoom,2))
+                    self.RMerr2zoom_str = self.RMerr2zoom_str + " ; " + str(np.around(self.RMerr2zoom,2))
+                    self.comp_dict[self.curr_comp]["RM"] = self.RM2zoom
+                    self.comp_dict[self.curr_comp]["RMerr"] = self.RMerr2zoom
+                    self.comp_dict[self.curr_comp]["RMsnrs"] = copy.deepcopy(self.RMsnrs2zoom)
+                    self.comp_dict[self.curr_comp]["trialRMs"] = copy.deepcopy(self.trial_RM2)
+                elif self.curr_comp == -1:
+                    self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
+                    self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
+                
 
+
+    
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
 
         except Exception as e:
