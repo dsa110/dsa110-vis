@@ -372,7 +372,6 @@ class pol_panel(param.Parameterized):
 
             (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
 
-
             self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
 
     #***COMPONENT SELECTION MODULE***#
@@ -529,6 +528,7 @@ class pol_panel(param.Parameterized):
     def clicked_get(self):
         try:
             self.comp_choose_on = not self.comp_choose_on
+            self.height = np.around(np.max(self.I_t)/2,2)
             self.param.trigger('get_comp')
         except Exception as e:
             self.error = "From clicked_get(): " + str(e)
@@ -708,7 +708,7 @@ class pol_panel(param.Parameterized):
                 self.param.trigger('done')
 
         except Exception as e:
-            self.error2 = "From clicked_done(): " + str(e)
+            self.error2 = str(len(self.fixed_comps)) + " " + "From clicked_done(): " + str(e) + " " + str(self.comp_dict.keys())
             #self.error2 = "From clicked_done(): " + str(len(self.fixed_comps)) + str(self.curr_comp)
         return
     #up = param.Action(clicked_up)#clicked)
@@ -895,8 +895,10 @@ def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,R
 
 
     #INITIAL SYNTHESIS
-    ax1.plot(trial_RM,RMsnrs,label="RM synthesis",color="black")
-    ax1.plot(trial_RM_tools,RMsnrstools,alpha=0.5,label="RM Tools",color="blue")
+    if len(trial_RM) == len(RMsnrs):
+        ax1.plot(trial_RM,RMsnrs,label="RM synthesis",color="black")
+    if len(trial_RM_tools) == len(RMsnrstools):
+        ax1.plot(trial_RM_tools,RMsnrstools,alpha=0.5,label="RM Tools",color="blue")
     ax1.legend(loc="upper right")
 
 
