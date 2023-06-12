@@ -110,6 +110,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
     
     fig = plt.figure(figsize=(20,24))
     axPA = plt.subplot2grid(shape=(5, 2), loc=(0, 0),colspan=2)
+    axPA.set_ylim(-1.1*180,1.1*180)
     ax = plt.subplot2grid(shape=(5, 2), loc=(1, 0),colspan=2)
 
     faxs = []
@@ -152,7 +153,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
             intL = int(intL[0])
             intR = int(intR[-1])
             ax.axhline(height,color="red",linestyle="--")
-            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[timestart:timestop][intL:intR],yerr=(180/np.pi)*PA_t_errs[timestart:timestop][intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         elif multipeaks:
             intL = np.nan
             intR = np.nan
@@ -162,7 +163,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
             FWHM,heights,intL,intR = peak_widths(I_t_weights[timestart:timestop],[np.argmax(I_t_weights[timestart:timestop])])
             intL = int(intL)
             intR = int(intR)
-            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[timestart:timestop][intL:intR],yerr=(180/np.pi)*PA_t_errs[timestart:timestop][intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         ax.axvline(intL,color="red",linestyle="--")
         ax.axvline(intR,color="red",linestyle="--")
         
@@ -175,9 +176,11 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
         intR = np.max(intRs)
         
         if maskPA:
-            axPA.errorbar(np.arange(intL,intR)[(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],(180/np.pi)*PA_t[intL:intR][(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],yerr=(180/np.pi)*PA_t_errs[intL:intR][(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+            tstweight = (I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop][intL:intR]
+            ax.plot(np.arange(intL,intR),tstweight,color="black")
+            axPA.errorbar(np.arange(intL,intR)[(I_t_weights[timestart:timestop])[intL:intR] > 0.005],(180/np.pi)*PA_t[timestart:timestop][intL:intR][(I_t_weights[timestart:timestop])[intL:intR] > 0.005],yerr=(180/np.pi)*PA_t_errs[timestart:timestop][intL:intR][(I_t_weights[timestart:timestop])[intL:intR] > 0.005],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         else:
-            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[timestart:timestop][intL:intR],yerr=(180/np.pi)*PA_t_errs[timestart:timestop][intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
     #else:
     #    axPA.errorbar(np.arange(0,timestop-timestart),PA_t[timestart:timestop],yerr=PA_t_errs[timestart:timestop],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
     
