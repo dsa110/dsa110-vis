@@ -109,16 +109,32 @@ from matplotlib.widgets import TextBox
 def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
-    axPA = plt.subplot2grid(shape=(5, 2), loc=(0, 0),colspan=2)
+    top = fig.add_gridspec(9,2,hspace=0,top=0.95)
+    axPA = fig.add_subplot(top[0,:])
     axPA.set_ylim(-1.1*180,1.1*180)
-    ax = plt.subplot2grid(shape=(5, 2), loc=(1, 0),colspan=2)
-
+    ax = fig.add_subplot(top[1:3,:])
+    axPA.xaxis.set_major_locator(ticker.NullLocator())
+    """
+    axPA = plt.subplot2grid(shape=(9, 2), loc=(0, 0),colspan=2)
+    axPA.set_ylim(-1.1*180,1.1*180)
+    ax = plt.subplot2grid(shape=(9, 2), loc=(1, 0),colspan=2,rowspan=2)
+    #fig.subplots_adjust(hspace=0)
+    axPA.xaxis.set_major_locator(ticker.NullLocator())
+    #plt.subplots_adjust(hspace=0.0)
+    """
     faxs = []
     #print("check1")
     for i in range(1,maxcomps+1):
         #if filt_weights_on or freq_samp_on:
         #    plt.text(0.1,0.1,comp_dict[i]["T/I_pre_"])
-        faxs.append(plt.subplot2grid(shape=(5, 2), loc=( (i-1)//2+ 2, (i-1)%2)))
+        #faxs.append(plt.subplot2grid(shape=(9, 2), loc=( (i-1)//2+ 3 + (i-1)//2, (i-1)%2),rowspan=2))
+        
+        bottom = fig.add_gridspec(9,2,hspace=1.5)
+        row = (i-1)//2+ 3 + (i-1)//2
+        col= (i-1)%2
+        fax_i = fig.add_subplot(bottom[row:row+2, col])
+        faxs.append(fax_i)
+        
         faxs[i-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
         faxs[i-1].set_ylabel("S/N")
         faxs[i-1].set_title("Component #" + str(i))
@@ -126,7 +142,10 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
         #print("check1.5")
     #print("check2")
 
-    faxs.append(plt.subplot2grid(shape=(5, 1), loc=(4, 0),colspan=2))
+    #faxs.append(plt.subplot2grid(shape=(9, 1), loc=(7, 0),colspan=2,rowspan=2))
+    fax_i = fig.add_subplot(bottom[7:9,:])
+    faxs.append(fax_i)
+
     faxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
     faxs[-1].set_ylabel("S/N")
     faxs[-1].set_title("All Components")
@@ -230,7 +249,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
 
 
     ax.set_xlabel("Time Sample ({a} $\mu s$)".format(a=np.around(n_t*32.7,1)))
-    axPA.set_xlabel("Time Sample ({a} $\mu s$)".format(a=np.around(n_t*32.7,1)))
+    #axPA.set_xlabel("Time Sample ({a} $\mu s$)".format(a=np.around(n_t*32.7,1)))
     ax.set_ylabel("S/N")
     #plt.show()
 
@@ -250,7 +269,10 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
 
     #print("check5")
     #fig.tight_layout()
-    plt.subplots_adjust(hspace=0.5)
+    
+    
+    #axPA.xaxis.set_major_locator(ticker.NullLocator())
+    plt.subplots_adjust(hspace=1.5)
     return fig
 
 
