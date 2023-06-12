@@ -109,7 +109,7 @@ from matplotlib.widgets import TextBox
 def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
-    top = fig.add_gridspec(9,2,hspace=0,top=0.95)
+    top = fig.add_gridspec(13,2,hspace=0,top=0.98)
     axPA = fig.add_subplot(top[0,:])
     axPA.set_ylim(-1.1*180,1.1*180)
     ax = fig.add_subplot(top[1:3,:])
@@ -123,34 +123,47 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
     #plt.subplots_adjust(hspace=0.0)
     """
     faxs = []
+    paxs = []
+    #bottom = fig.add_gridspec(9,2,hspace=1.5)
     #print("check1")
     for i in range(1,maxcomps+1):
         #if filt_weights_on or freq_samp_on:
         #    plt.text(0.1,0.1,comp_dict[i]["T/I_pre_"])
         #faxs.append(plt.subplot2grid(shape=(9, 2), loc=( (i-1)//2+ 3 + (i-1)//2, (i-1)%2),rowspan=2))
         
-        bottom = fig.add_gridspec(9,2,hspace=1.5)
-        row = (i-1)//2+ 3 + (i-1)//2
+        row = (i-1)//2 + 3 + 1 + 2*((i-1)//2)#(i-1)//2+ 3 + (i-1)//2
         col= (i-1)%2
+        bottom = fig.add_gridspec(13,2,hspace=0.0,top=0.89 - 0.07*((row-1)//3 -1),bottom=0.14-0.07*((row-1)//3 - 1))# - (0.5*((row-1)//3 - 1)))
         fax_i = fig.add_subplot(bottom[row:row+2, col])
         faxs.append(fax_i)
+
+        pax_i = fig.add_subplot(bottom[row-1,col])
+        paxs.append(pax_i)
         
+
+        paxs[i-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
+        paxs[i-1].set_ylabel("deg.")
         faxs[i-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
         faxs[i-1].set_ylabel("S/N")
-        faxs[i-1].set_title("Component #" + str(i))
+        paxs[i-1].set_title("Component #" + str(i))
         faxs[-1].set_xlabel("Freq. (MHz)")
         #print("check1.5")
+        paxs[i-1].xaxis.set_major_locator(ticker.NullLocator())
     #print("check2")
-
+    bottom = fig.add_gridspec(13,2,hspace=0.0,top=0.76,bottom=0.0)
     #faxs.append(plt.subplot2grid(shape=(9, 1), loc=(7, 0),colspan=2,rowspan=2))
-    fax_i = fig.add_subplot(bottom[7:9,:])
+    pax_i = fig.add_subplot(bottom[9,:])
+    fax_i = fig.add_subplot(bottom[10:12,:])
+    paxs.append(pax_i)
     faxs.append(fax_i)
 
+    paxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
     faxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
+    paxs[-1].set_ylabel("deg.")
     faxs[-1].set_ylabel("S/N")
-    faxs[-1].set_title("All Components")
+    paxs[-1].set_title("All Components")
     faxs[-1].set_xlabel("Frequency (MHz)")
-
+    paxs[i-1].xaxis.set_major_locator(ticker.NullLocator())
 
     #plot filterweights always
     if (filt_weights_on or freq_samp_on) and (not wait):
