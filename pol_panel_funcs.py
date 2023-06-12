@@ -106,17 +106,18 @@ from matplotlib.widgets import TextBox
 
 
 
-def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,maxcomps=4):
+def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
-    ax = plt.subplot2grid(shape=(4, 2), loc=(0, 0),colspan=2)
+    axPA = plt.subplot2grid(shape=(5, 2), loc=(0, 0),colspan=2)
+    ax = plt.subplot2grid(shape=(5, 2), loc=(1, 0),colspan=2)
 
     faxs = []
     #print("check1")
     for i in range(1,maxcomps+1):
         #if filt_weights_on or freq_samp_on:
         #    plt.text(0.1,0.1,comp_dict[i]["T/I_pre_"])
-        faxs.append(plt.subplot2grid(shape=(4, 2), loc=( (i-1)//2+ 1, (i-1)%2)))
+        faxs.append(plt.subplot2grid(shape=(5, 2), loc=( (i-1)//2+ 2, (i-1)%2)))
         faxs[i-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
         faxs[i-1].set_ylabel("S/N")
         faxs[i-1].set_title("Component #" + str(i))
@@ -124,7 +125,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
         #print("check1.5")
     #print("check2")
 
-    faxs.append(plt.subplot2grid(shape=(4, 1), loc=(3, 0),colspan=2))
+    faxs.append(plt.subplot2grid(shape=(5, 1), loc=(4, 0),colspan=2))
     faxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
     faxs[-1].set_ylabel("S/N")
     faxs[-1].set_title("All Components")
@@ -137,10 +138,12 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
         ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
+        axPA.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
         #ax1.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
     else:
         peak = np.argmax(I_t[timestart:timestop])
         ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
+        axPA.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
 
     if filt_weights_on:
         if multipeaks and height < np.max(I_t):
@@ -149,17 +152,35 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
             intL = int(intL[0])
             intR = int(intR[-1])
             ax.axhline(height,color="red",linestyle="--")
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         elif multipeaks:
             intL = np.nan
             intR = np.nan
             ax.axhline(height,color="red",linestyle="--")
+            #axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         else:
             FWHM,heights,intL,intR = peak_widths(I_t_weights[timestart:timestop],[np.argmax(I_t_weights[timestart:timestop])])
             intL = int(intL)
             intR = int(intR)
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
         ax.axvline(intL,color="red",linestyle="--")
         ax.axvline(intR,color="red",linestyle="--")
+        
 
+
+
+
+    elif freq_samp_on:
+        intL = np.min(intLs)
+        intR = np.max(intRs)
+        
+        if maskPA:
+            axPA.errorbar(np.arange(intL,intR)[(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],(180/np.pi)*PA_t[intL:intR][(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],yerr=(180/np.pi)*PA_t_errs[intL:intR][(I_t_weights*np.max(I_t)/np.max(I_t_weights))[intL:intR] > 1],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+        else:
+            axPA.errorbar(np.arange(intL,intR),(180/np.pi)*PA_t[intL:intR],yerr=(180/np.pi)*PA_t_errs[intL:intR],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+    #else:
+    #    axPA.errorbar(np.arange(0,timestop-timestart),PA_t[timestart:timestop],yerr=PA_t_errs[timestart:timestop],fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+    
     #print("check3")
     if filt_weights_on:
         for i in range(len(comp_dict.keys())):
@@ -177,11 +198,14 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
     else:
         ax.set_xlim(0,timestop-timestart)
         #ax1.set_xlim(0,timestop-timestart)
-
+        axPA.set_xlim(0,timestop-timestart)
 
     if wait:
         ax.set_xlim(0,timestop-timestart)
+        axPA.set_xlim(0,timestop-timestart)
 
+
+    axPA.set_ylabel("degrees")
     ax.plot(I_t[timestart:timestop],label="I")
     ax.plot(Q_t[timestart:timestop],label="Q")
     ax.plot(U_t[timestart:timestop],label="U")
@@ -203,6 +227,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,tim
 
 
     ax.set_xlabel("Time Sample ({a} $\mu s$)".format(a=np.around(n_t*32.7,1)))
+    axPA.set_xlabel("Time Sample ({a} $\mu s$)".format(a=np.around(n_t*32.7,1)))
     ax.set_ylabel("S/N")
     #plt.show()
 
@@ -256,6 +281,9 @@ class pol_panel(param.Parameterized):
     U_t_init = np.zeros(20480)
     V_t_init = np.zeros(20480)
 
+    PA_t_init = np.zeros(20480)
+    PA_t_errs_init = np.zeros(20480)
+
     fobj = None#fobj#None
     timeaxis = np.zeros(20480)#timeaxis#np.zeros(20480)
     freq_test_init = [np.zeros(6144)]*4
@@ -282,7 +310,7 @@ class pol_panel(param.Parameterized):
     n_f = 1
     n_f_prev = 1
     n_f_root = 1
-
+    loaded = False
 
     #polarization display
     param.String(default="",label="tmp")
@@ -294,13 +322,17 @@ class pol_panel(param.Parameterized):
     Q_t = np.nan*np.ones(I.shape[1])
     U_t = np.nan*np.ones(I.shape[1])
     V_t = np.nan*np.ones(I.shape[1])
+    
+    PA_t = np.nan*np.ones(I.shape[1])
+    PA_t_errs = np.nan*np.ones(I.shape[1])
 
     I_f_init = np.nan*np.ones(I.shape[0])#I.mean(1)#np.zeros(I.shape[0])
     Q_f_init = np.nan*np.ones(I.shape[0])#Q.mean(1)#np.zeros(Q.shape[0])
     U_f_init = np.nan*np.ones(I.shape[0])#U.mean(1)#np.zeros(U.shape[0])
     V_f_init = np.nan*np.ones(I.shape[0])#V.mean(1)#np.zeros(V.shape[0])
 
-
+    PA_f_init = np.nan*np.ones(I.shape[0])
+    PA_f_errs_init = np.nan*np.ones(I.shape[0])
 
     #@param.depends('frb_mid', watch=True
 
@@ -320,6 +352,7 @@ class pol_panel(param.Parameterized):
                 self.freq_test = copy.deepcopy(self.freq_test_init)
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
                 #self.frb_loaded = True
+                PA_f,self.PA_t_init,PA_f_errs,self.PA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
 
                 #time.sleep(5)
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
@@ -329,7 +362,7 @@ class pol_panel(param.Parameterized):
                 self.n_f = 1
                 self.n_f_prev = 1
                 self.n_t = 1
-
+                self.loaded = True
         except Exception as e:
             self.error = "From load_FRB(): " + str(e)
         return
@@ -387,8 +420,10 @@ class pol_panel(param.Parameterized):
     freq_samp_on = False
     wait = False
     multipeaks = param.Boolean(False)
+    maskPA=param.Boolean(False)
     height = param.Number(default=5,bounds=(0,50),step=1e-2)
-    
+    intLs = []
+    intRs = []
 
     fixed_comps = []
     complist_min = []
@@ -416,6 +451,34 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                 self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                 self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
+                if self.multipeaks:
+                    self.comp_dict[self.curr_comp]["height"] = self.height
+
+
+                peak = int(15280/self.n_t)
+                timestart = int(peak - (5e-3)/(self.n_t*32.7e-6))
+                timestop = int(peak + (5e-3)/(self.n_t*32.7e-6))
+
+                #get intL, intR
+                if self.multipeaks and self.height < np.max(self.I_t):
+                    pks,props = find_peaks((self.curr_weights*np.max(self.I_t)/np.max(self.curr_weights))[timestart:timestop],height=self.height)
+                    FWHM,heights,intL,intR = peak_widths((self.curr_weights*np.max(self.I_t)/np.max(self.curr_weights))[timestart:timestop],pks)
+                    intL = int(intL[0])
+                    intR = int(intR[-1])
+                elif self.multipeaks:
+                    intL = np.nan
+                    intR = np.nan
+                else:
+                    FWHM,heights,intL,intR = peak_widths(self.curr_weights[timestart:timestop],[np.argmax(self.curr_weights[timestart:timestop])])
+                    intL = int(intL)
+                    intR = int(intR)
+                self.comp_dict[self.curr_comp]["intL"] = intL
+                self.comp_dict[self.curr_comp]["intR"] = intR
+                self.intLs.append(intL)
+                self.intRs.append(intR)
+                print("yolo")
+                print(self.intLs)
+                print(self.intRs)
 
                 #get spectrum for current component
                 self.error = "Computing Spectrum..."
@@ -433,7 +496,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["U_f_init"] = U_fmasked
                 self.comp_dict[self.curr_comp]["V_f_init"] = V_fmasked
 
-                #get polarization fractions
+                #get polarization fractions and position angles
                 self.error = "Computing polarization..."
                 t1 = time.time()
                 [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
@@ -520,7 +583,7 @@ class pol_panel(param.Parameterized):
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
                 self.param.trigger('next_comp')
-            self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
+            #self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
         except Exception as e:
             self.error = "From clicked_next(): " + str(e)
 
@@ -591,6 +654,8 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
+
+
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
                     self.STEP = 1
@@ -614,6 +679,28 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                     self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                     self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
+
+                    if self.multipeaks:
+                        self.comp_dict[self.curr_comp]["height"] = self.height
+
+                    #get intL, intR
+                    if self.multipeaks and self.height < np.max(self.I_t):
+                        pks,props = find_peaks((self.curr_weights*np.max(self.I_t)/np.max(self.curr_weights))[timestart:timestop],height=self.height)
+                        FWHM,heights,intL,intR = peak_widths((self.curr_weights*np.max(self.I_t)/np.max(self.curr_weights))[timestart:timestop],pks)
+                        intL = int(intL[0])
+                        intR = int(intR[-1])
+                    elif self.multipeaks:
+                        intL = np.nan
+                        intR = np.nan
+                    else:
+                        FWHM,heights,intL,intR = peak_widths(self.curr_weights[timestart:timestop],[np.argmax(self.curr_weights[timestart:timestop])])
+                        intL = int(intL)
+                        intR = int(intR)
+                    self.comp_dict[self.curr_comp]["intL"] = intL
+                    self.comp_dict[self.curr_comp]["intR"] = intR
+                    self.intLs.append(intL)
+                    self.intRs.append(intR)
+
 
                     self.error = "Computing Spectrum..."
                     t1 = time.time()
@@ -758,6 +845,7 @@ class pol_panel(param.Parameterized):
     #@param.depends('frb_loaded', watch=True)
     def view(self):
         try:
+            #self.error2 = str(self.intLs) + " " + str(self.intRs)
             if self.error == "Loading FRB...":
                 #self.error = "Loading FRB..."
                 self.load_FRB()
@@ -776,8 +864,7 @@ class pol_panel(param.Parameterized):
             #if self.n_t != self.n_t_prev or self.n_f != self.n_f_prev:
                 #self.dyn_spec = dsapol.avg_freq(dsapol.avg_time(I2,self.n_t),self.n_f)
 
-
-            self.n_t_prev = self.n_t
+            #self.n_t_prev = self.n_t
             self.n_f = 2**self.log_n_f
             self.n_t_weight = 2**self.log_n_t_weight
 
@@ -796,6 +883,22 @@ class pol_panel(param.Parameterized):
             self.U_t = self.U_t.reshape(len(self.U_t)//self.n_t,self.n_t).mean(1)
             self.V_t = self.V_t_init[len(self.V_t_init)%self.n_t:]
             self.V_t = self.V_t.reshape(len(self.V_t)//self.n_t,self.n_t).mean(1)
+            self.PA_t = self.PA_t_init[len(self.PA_t_init)%self.n_t:]
+            self.PA_t = self.PA_t.reshape(len(self.PA_t)//self.n_t,self.n_t).mean(1)
+
+
+            if self.loaded:
+                if self.n_t == 1:
+                    self.PA_t_errs = self.PA_t_errs_init
+                elif self.n_t != self.n_t_prev:
+                    unbias_factor = 1
+                    L_t = np.sqrt(self.Q_t**2 + self.U_t**2)#*I_w_t_filt
+                    L_t[L_t**2 <= (unbias_factor*np.std(self.I_t[:int(12000/self.n_t)]))**2] = np.std(self.I_t[:int(12000/self.n_t)])
+                    L_t = np.sqrt(L_t**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
+                    self.PA_t_errs = dsapol.PA_error_NKC_array(self.PA_t,L_t,np.std(self.I_t[:int(12000/self.n_t)]))
+
+            self.n_t_prev = self.n_t
+
 
             #compute weights
             if self.filt_weights_on and self.curr_comp < len(self.fixed_comps):
@@ -847,7 +950,7 @@ class pol_panel(param.Parameterized):
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
-            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height)
+            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA)
         except Exception as e:
             print("HERE I AM")
             print(str(e))
