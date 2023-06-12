@@ -106,7 +106,7 @@ from matplotlib.widgets import TextBox
 
 
 
-def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
+def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
     top = fig.add_gridspec(13,2,hspace=0,top=0.98)
@@ -133,12 +133,13 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
         
         row = (i-1)//2 + 3 + 1 + 2*((i-1)//2)#(i-1)//2+ 3 + (i-1)//2
         col= (i-1)%2
-        bottom = fig.add_gridspec(13,2,hspace=0.0,top=0.89 - 0.07*((row-1)//3 -1),bottom=0.14-0.07*((row-1)//3 - 1))# - (0.5*((row-1)//3 - 1)))
+        bottom = fig.add_gridspec(13,2,hspace=0.0,top=0.89 - 0.07*((row-1)//3 -1),bottom=0.14-0.07*((row-1)//3 - 1),wspace=0.25)# - (0.5*((row-1)//3 - 1)))
         fax_i = fig.add_subplot(bottom[row:row+2, col])
         faxs.append(fax_i)
 
         pax_i = fig.add_subplot(bottom[row-1,col])
         paxs.append(pax_i)
+        pax_i.set_ylim(-1.1*180,1.1*180)
         
 
         paxs[i-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
@@ -156,6 +157,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
     fax_i = fig.add_subplot(bottom[10:12,:])
     paxs.append(pax_i)
     faxs.append(fax_i)
+    pax_i.set_ylim(-1.1*180,1.1*180)
 
     paxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
     faxs[-1].set_xlim(np.min(freq_test[0]),np.max(freq_test[0]))
@@ -219,7 +221,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
     #print("check3")
     if filt_weights_on:
         for i in range(len(comp_dict.keys())):
-            if "I_f" in comp_dict[i].keys():
+            if "I_f" in comp_dict[i].keys() and "PA_f" in comp_dict[i].keys() and "PA_f_errs" in comp_dict[i].keys():
                 #ax.text(100,25,"test")
                 #ax.text(100,25,str(i))
                 #ax.text(100,25,str("I_f" in comp_dict[i].keys()))
@@ -230,6 +232,9 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
                 faxs[i].plot(freq_test[0],comp_dict[i]["Q_f"],label="Q")
                 faxs[i].plot(freq_test[0],comp_dict[i]["U_f"],label="U")
                 faxs[i].plot(freq_test[0],comp_dict[i]["V_f"],label="V")
+
+                paxs[i].errorbar(freq_test[0],(180/np.pi)*(comp_dict[i]["PA_f"]),(180/np.pi)*(comp_dict[i]["PA_f_errs"]),fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
+
     else:
         ax.set_xlim(0,timestop-timestart)
         #ax1.set_xlim(0,timestop-timestart)
@@ -266,18 +271,20 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,comp_dict,freq_test,
     ax.set_ylabel("S/N")
     #plt.show()
 
-    if freq_samp_on:
+    if freq_samp_on:# and len(freq_test[0]) == len(PA_f):
         faxs[-1].plot(freq_test[0],I_f,label="I")
         faxs[-1].plot(freq_test[0],Q_f,label="Q")
         faxs[-1].plot(freq_test[0],U_f,label="U")
         faxs[-1].plot(freq_test[0],V_f,label="V")
+        paxs[-1].errorbar(freq_test[0],(180/np.pi)*PA_f,yerr=(180/np.pi)*PA_f_errs,label="Intrinsic PPA",color="blue",markersize=6,linewidth=2,fmt='o')
+
 
         for i in range(len(comp_dict.keys())):
             faxs[i].plot(freq_test[0],comp_dict[i]["I_f"],label="I")
             faxs[i].plot(freq_test[0],comp_dict[i]["Q_f"],label="Q")
             faxs[i].plot(freq_test[0],comp_dict[i]["U_f"],label="U")
             faxs[i].plot(freq_test[0],comp_dict[i]["V_f"],label="V")
-
+            paxs[i].errorbar(freq_test[0],(180/np.pi)*(comp_dict[i]["PA_f"]),yerr=(180/np.pi)*(comp_dict[i]["PA_f_errs"]),fmt='o',label="Intrinsic PPA",color="blue",markersize=6,linewidth=2)
 
 
     #print("check5")
@@ -356,27 +363,35 @@ class pol_panel(param.Parameterized):
 
     STEP = 0
 
-    I_t = np.nan*np.ones(I.shape[1])
-    Q_t = np.nan*np.ones(I.shape[1])
-    U_t = np.nan*np.ones(I.shape[1])
-    V_t = np.nan*np.ones(I.shape[1])
+    I_t = np.nan*np.ones(20480)
+    Q_t = np.nan*np.ones(20480)
+    U_t = np.nan*np.ones(20480)
+    V_t = np.nan*np.ones(20480)
     
-    PA_t = np.nan*np.ones(I.shape[1])
-    PA_t_errs = np.nan*np.ones(I.shape[1])
+    PA_t = np.nan*np.ones(20480)
+    PA_t_errs = np.nan*np.ones(20480)
 
-    I_f_init = np.nan*np.ones(I.shape[0])#I.mean(1)#np.zeros(I.shape[0])
-    Q_f_init = np.nan*np.ones(I.shape[0])#Q.mean(1)#np.zeros(Q.shape[0])
-    U_f_init = np.nan*np.ones(I.shape[0])#U.mean(1)#np.zeros(U.shape[0])
-    V_f_init = np.nan*np.ones(I.shape[0])#V.mean(1)#np.zeros(V.shape[0])
+    I_f_init = np.nan*np.ones(6144)#I.mean(1)#np.zeros(I.shape[0])
+    Q_f_init = np.nan*np.ones(6144)#Q.mean(1)#np.zeros(Q.shape[0])
+    U_f_init = np.nan*np.ones(6144)#U.mean(1)#np.zeros(U.shape[0])
+    V_f_init = np.nan*np.ones(6144)#V.mean(1)#np.zeros(V.shape[0])
 
-    PA_f_init = np.nan*np.ones(I.shape[0])
-    PA_f_errs_init = np.nan*np.ones(I.shape[0])
+    PA_f_init = np.nan*np.ones(6144)
+    PA_f_errs_init = np.nan*np.ones(6144)
 
+    I_f = np.nan*np.ones(len(I_f_init))
+    Q_f = np.nan*np.ones(len(I_f_init))
+    U_f = np.nan*np.ones(len(I_f_init))
+    V_f = np.nan*np.ones(len(I_f_init))
+    PA_f = np.nan*np.ones(len(I_f_init))
+    PA_f_errs = np.nan*np.ones(len(I_f_init))
+    freq_test = copy.deepcopy(freq_test_init)
     #@param.depends('frb_mid', watch=True
 
     def load_FRB(self):
         try:
             if self.error=="Loading FRB...":
+                #self.error2 = str(self.I.shape)
                 self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
                 t1 = time.time()
                 ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
@@ -400,6 +415,35 @@ class pol_panel(param.Parameterized):
                 self.n_f = 1
                 self.n_f_prev = 1
                 self.n_t = 1
+
+                
+                self.I_t = np.nan*np.ones(len(self.I_t_init))
+                self.Q_t = np.nan*np.ones(len(self.I_t_init))
+                self.U_t = np.nan*np.ones(len(self.I_t_init))
+                self.V_t = np.nan*np.ones(len(self.I_t_init))
+
+                self.PA_t = np.nan*np.ones(len(self.PA_t_init))
+                self.PA_t_errs = np.nan*np.ones(len(self.PA_t_errs_init))
+
+                self.I_f_init = np.nan*np.ones(len(self.freq_test_init))#I.mean(1)#np.zeros(I.shape[0])
+                self.Q_f_init = np.nan*np.ones(len(self.freq_test_init))#Q.mean(1)#np.zeros(Q.shape[0])
+                self.U_f_init = np.nan*np.ones(len(self.freq_test_init))#U.mean(1)#np.zeros(U.shape[0])
+                self.V_f_init = np.nan*np.ones(len(self.freq_test_init))#V.mean(1)#np.zeros(V.shape[0])
+
+                self.I_f = np.nan*np.ones(len(self.I_f_init))
+                self.Q_f = np.nan*np.ones(len(self.I_f_init))
+                self.U_f = np.nan*np.ones(len(self.I_f_init))
+                self.V_f = np.nan*np.ones(len(self.I_f_init))
+                self.PA_f = np.nan*np.ones(len(self.I_f_init))
+                self.PA_f_errs = np.nan*np.ones(len(self.I_f_init))
+                self.freq_test = copy.deepcopy(self.freq_test_init)
+    
+    
+                self.PA_f_init = np.nan*np.ones(len(self.freq_test_init[0]))
+                self.PA_f_errs_init = np.nan*np.ones(len(self.freq_test_init[0]))
+                
+
+
                 self.loaded = True
         except Exception as e:
             self.error = "From load_FRB(): " + str(e)
@@ -534,6 +578,21 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["U_f_init"] = U_fmasked
                 self.comp_dict[self.curr_comp]["V_f_init"] = V_fmasked
 
+                #get PA vs frequency
+                self.error = "Computing Position Angle..."
+                t1 = time.time()
+                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
+                self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
+                
+                self.comp_dict[self.curr_comp]["PA_f_init"] = PA_fmasked
+                self.comp_dict[self.curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
+
+                self.comp_dict[self.curr_comp]["PA_pre"] = avg_PA
+                self.comp_dict[self.curr_comp]["PAerr_pre"] = sigma_PA
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"    
+
+
                 #get polarization fractions and position angles
                 self.error = "Computing polarization..."
                 t1 = time.time()
@@ -569,6 +628,9 @@ class pol_panel(param.Parameterized):
                     self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
                     self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '                    
 
+                    self.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
+                    self.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
+
                 elif self.curr_comp == 0 and len(self.fixed_comps) > 1:
                     self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ' ; '
                     self.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
@@ -584,6 +646,10 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
                     self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
                     self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+                    
+                    self.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ; '
+                    self.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
+
                     self.curr_comp += 1
 
                 elif self.curr_comp <  len(self.fixed_comps) -1 :
@@ -602,6 +668,10 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+
+                    self.avgPA = self.avgPA + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ; '
+                    self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
+
                     self.curr_comp += 1
                 elif self.curr_comp == len(self.fixed_comps) - 1:
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))+ ') '
@@ -618,6 +688,10 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ') '
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '
+
+                    self.avgPA = self.PA + r'{a}%'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
+                    self.avgPAerr = self.PAerr + r'{a}%'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
+
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
                 self.param.trigger('next_comp')
@@ -669,6 +743,17 @@ class pol_panel(param.Parameterized):
                     t1 = time.time()
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute spectrum"
+
+
+                    #get total PA 
+                    self.error = "Computing Position Angle..."
+                    t1 = time.time()
+                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+
+                    self.avgPA = self.avgPA + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))
+                    self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"
+
 
 
                     #get total polarization
@@ -755,6 +840,23 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["U_f_init"] = U_fmasked
                     self.comp_dict[self.curr_comp]["V_f_init"] = V_fmasked
 
+
+                    #get PA vs frequency
+                    self.error = "Computing Position Angle..."
+                    t1 = time.time()
+                    PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
+                    self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
+
+                    self.comp_dict[self.curr_comp]["PA_f_init"] = PA_fmasked
+                    self.comp_dict[self.curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
+
+                    self.comp_dict[self.curr_comp]["PA_pre"] = avg_PA
+                    self.comp_dict[self.curr_comp]["PAerr_pre"] = sigma_PA
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"
+
+
+
                     #get polarization fractions
                     self.error = "Computing polarization..."
                     t1 = time.time()
@@ -787,6 +889,9 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) + ') '
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) + ') '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2)) + ') '
+                    
+                    self.avgPA = self.avgPA + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2)) + ') '
+                    self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2)) + ') '
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
                     self.curr_comp += 1
@@ -802,6 +907,15 @@ class pol_panel(param.Parameterized):
                     t1 = time.time()
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full spectrum"
+
+
+                    #get PA vs frequency
+                    self.error = "Computing Position Angle..."
+                    t1 = time.time()
+                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"
+
+
 
                     #get total polarization
                     self.error = "Computing total polarization..."
@@ -824,6 +938,9 @@ class pol_panel(param.Parameterized):
                     self.Lpolerr = self.Lpolerr + r'{a}%'.format(a=np.around(100*sigma_L,2)) 
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2)) 
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
+
+                    self.avgPA = self.avgPA + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))
+                    self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full polarization"
 
                     self.filt_weights_on = False
@@ -856,6 +973,8 @@ class pol_panel(param.Parameterized):
     absCpolerr = param.String(default="",label="error")
     Cpol = param.String(default="",label="V/I")
     Cpolerr = param.String(default="",label="error")
+    avgPA = param.String(default="",label="PA (degrees)")
+    avgPAerr = param.String(default="",label="error")
 
     #***FILTER WEIGHTS MODULE***#
     comp_dict = dict()
@@ -864,15 +983,6 @@ class pol_panel(param.Parameterized):
 
     #click_data = param.Dict(doc="test")
     #print(click_data)
-
-
-    #***FREQUENCY DOWNSAMPLE MODULE***#
-    I_f = np.nan*np.ones(len(I_f_init))
-    Q_f = np.nan*np.ones(len(I_f_init))
-    U_f = np.nan*np.ones(len(I_f_init))
-    V_f = np.nan*np.ones(len(I_f_init))
-    freq_test = copy.deepcopy(freq_test_init)
-
 
 
 
@@ -974,6 +1084,19 @@ class pol_panel(param.Parameterized):
                 self.U_f = self.U_f.reshape(len(self.U_f)//self.n_f,self.n_f).mean(1)
                 self.V_f = self.V_f_init[len(self.V_f_init)%self.n_f:]
                 self.V_f = self.V_f.reshape(len(self.V_f)//self.n_f,self.n_f).mean(1)
+                self.PA_f = self.PA_f_init[len(self.PA_f_init)%self.n_f:]
+                self.PA_f = self.PA_f.reshape(len(self.PA_f)//self.n_f,self.n_f).mean(1)
+
+                if self.loaded:
+                    if self.n_f == 1:
+                        self.PA_f_errs = self.PA_f_errs_init
+                    elif self.n_f != self.n_f_prev:
+                        unbias_factor = 1
+                        L_f = np.sqrt(self.Q_f**2 + self.U_f**2)#*I_w_t_filt
+                        L_f[L_f**2 <= (unbias_factor*np.std(self.I_t[:int(12000/self.n_t)]))**2] = np.std(self.I_t[:int(12000/self.n_t)])
+                        L_f = np.sqrt(L_f**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
+                        self.PA_f_errs = dsapol.PA_error_NKC_array(self.PA_f,L_f,np.std(self.I_t[:int(12000/self.n_t)]))
+
 
 
                 for i in range(len(self.comp_dict.keys())):
@@ -985,14 +1108,30 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[i]["U_f"] = self.comp_dict[i]["U_f"].reshape(len(self.comp_dict[i]["U_f"])//self.n_f,self.n_f).mean(1)
                     self.comp_dict[i]["V_f"] = self.comp_dict[i]["V_f_init"][len(self.comp_dict[i]["V_f_init"])%self.n_f:]
                     self.comp_dict[i]["V_f"] = self.comp_dict[i]["V_f"].reshape(len(self.comp_dict[i]["V_f"])//self.n_f,self.n_f).mean(1)
+                    self.comp_dict[i]["PA_f"] = self.comp_dict[i]["PA_f_init"][len(self.comp_dict[i]["PA_f_init"])%self.n_f:]
+                    self.comp_dict[i]["PA_f"] = self.comp_dict[i]["PA_f"].reshape(len(self.comp_dict[i]["PA_f"])//self.n_f,self.n_f).mean(1)
+
+                    if self.loaded:
+                        if self.n_f == 1:
+                            self.comp_dict[i]["PA_f_errs"] = self.comp_dict[i]["PA_f_errs_init"]
+                        elif self.n_f != self.n_f_prev:
+                            unbias_factor = 1
+                            L_f = np.sqrt(self.comp_dict[i]["Q_f"]**2 + self.comp_dict[i]["U_f"]**2)#*I_w_t_filt
+                            L_f[L_f**2 <= (unbias_factor*np.std(self.I_t[:int(12000/self.n_t)]))**2] = np.std(self.I_t[:int(12000/self.n_t)])
+                            L_f = np.sqrt(L_f**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
+                            self.comp_dict[i]["PA_f_errs"] = dsapol.PA_error_NKC_array(self.comp_dict[i]["PA_f"],L_f,np.std(self.I_t[:int(12000/self.n_t)]))
+
+
+
+                self.n_f_prev = self.n_f
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
-            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA)
+            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.PA_f,self.PA_f_errs,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA)
         except Exception as e:
             print("HERE I AM")
             print(str(e))
-            self.error = "From view3(): " + str(e)
+            self.error = "From view3(): " + str(e) + " " + str(len(self.PA_f)) + " " + str(len(self.PA_f_errs)) + " " + str(len(self.freq_test[0]))
         return
 
 
