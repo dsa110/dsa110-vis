@@ -1295,7 +1295,34 @@ class RM_panel(param.Parameterized):
 
     def clicked_run(self):
         try:
-            if self.init_RM:
+            #check if there's only one component
+            if self.curr_comp == -1 and len(self.comp_dict.keys()) == 1:
+                self.error = "Only one component, copying results..."
+                t1 = time.time()
+
+                if self.init_RM:
+                    self.RM1_str = self.RM1_str + ") " + str(np.around(self.RM1,2))
+                    self.RMerr1_str = self.RMerr1_str + ") " + str(np.around(self.RMerr1,2))
+
+                    self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
+                    self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
+                
+            
+                    self.init_RM = False
+                    self.fine_RM = True
+                elif self.fine_RM:
+                    self.RM1zoom_str = self.RM1zoom_str + ") " + str(np.around(self.RM1zoom,2))
+                    self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
+                    
+                    self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
+                    self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
+
+                    self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
+                    self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
+
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to copy RM results"
+
+            elif self.init_RM:
                 self.error = "Running initial RM synthesis..."
                 t1 = time.time()
                 self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
