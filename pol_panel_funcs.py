@@ -547,7 +547,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
                 if self.multipeaks:
                     self.comp_dict[self.curr_comp]["height"] = self.height
-
+                    self.comp_dict[self.curr_comp]["scaled_height"] = self.height*np.max(self.curr_weights)/np.max(self.I_t)
 
                 peak = int(15280/self.n_t)
                 timestart = int(peak - (5e-3)/(self.n_t*32.7e-6))
@@ -817,6 +817,7 @@ class pol_panel(param.Parameterized):
 
                     if self.multipeaks:
                         self.comp_dict[self.curr_comp]["height"] = self.height
+                        self.comp_dict[self.curr_comp]["scaled_height"] = self.height*np.max(self.curr_weights)/np.max(self.I_t)
 
                     #get intL, intR
                     if self.multipeaks and self.height < np.max(self.I_t):
