@@ -310,7 +310,10 @@ class pol_panel(param.Parameterized):
     error = param.String(default="",label="output/errors")
     error2 = param.String(default="",label="tmp")
 
-
+    I_init = np.zeros((20480,6144))
+    Q_init = np.zeros((20480,6144))
+    U_init = np.zeros((20480,6144))
+    V_init = np.zeros((20480,6144))
 
 
     I = np.zeros((20480,6144))
@@ -318,7 +321,10 @@ class pol_panel(param.Parameterized):
     U = np.zeros((20480,6144))
     V = np.zeros((20480,6144))
 
-
+    I_RMcal = np.zeros((20480,6144))
+    Q_RMcal = np.zeros((20480,6144))
+    U_RMcal = np.zeros((20480,6144))
+    V_RMcal = np.zeros((20480,6144))
 
 
     I_t_init = np.zeros(20480)
@@ -402,6 +408,7 @@ class pol_panel(param.Parameterized):
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
                 (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(datadir,ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
                 self.freq_test = copy.deepcopy(self.freq_test_init)
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
                 #self.frb_loaded = True
@@ -416,7 +423,11 @@ class pol_panel(param.Parameterized):
                 self.n_f_prev = 1
                 self.n_t = 1
 
-                
+                self.I_RMcal =  np.zeros(self.I.shape)
+                self.Q_RMcal =  np.zeros(self.I.shape)
+                self.U_RMcal =  np.zeros(self.I.shape)
+                self.V_RMcal =  np.zeros(self.I.shape)
+
                 self.I_t = np.nan*np.ones(len(self.I_t_init))
                 self.Q_t = np.nan*np.ones(len(self.I_t_init))
                 self.U_t = np.nan*np.ones(len(self.I_t_init))
@@ -484,6 +495,7 @@ class pol_panel(param.Parameterized):
 
             self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
             self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
+            self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
 
             (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
 
@@ -689,8 +701,8 @@ class pol_panel(param.Parameterized):
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '
 
-                    self.avgPA = self.PA + r'{a}%'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
-                    self.avgPAerr = self.PAerr + r'{a}%'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
+                    self.avgPA = self.avgPA + r'{a}%'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
+                    self.avgPAerr = self.avgPAerr + r'{a}%'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
 
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
