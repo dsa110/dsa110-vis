@@ -1,4 +1,9 @@
 
+dedisp_usage_str = """
+    ### **Dedispersion Tab Usage**
+    
+    *Insert dedispersion tab usage here*
+    """
 
 pol_usage_str = """
     ### **Polarization Tab Usage**
@@ -32,4 +37,10 @@ pol_usage_str = """
 
     * **Downsample in Frequency**: Once all burst components have been processed, click 'Done'. One can repeat the **Rm Analysis** step described above for the full burst using concatenated weights. Once all RM analysis is complete. The frequency spectra can be downsampled to maximized structure by adjusting the 'log2(n_f)' slider, defined as the log base 2 of the factor 'n_f' by which the frequency axis is downsampled (e.g. log2(n_f) = 0 gives channel bandwidth 30.5 kHz, log2(n_f) = 1 gives channel bandwidth 30.5x2 = 61.0 kHz).
 
+    """
+
+burstfit_usage_str = """
+    ### **Burstfit Tab Usage**
+    
+    *Insert burstfit tab usage here*
     """
