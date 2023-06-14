@@ -364,8 +364,6 @@ class pol_panel(param.Parameterized):
     loaded = False
 
     #polarization display
-    param.String(default="",label="tmp")
-
 
     STEP = 0
 
