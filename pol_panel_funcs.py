@@ -172,8 +172,8 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
         #ax.text(0,20,str(wait))
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
-        ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
-        axPA.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
+        ax.set_xlim(int(peak - (5e-3)/(32.7e-6)),int(peak + (5e-3)/(32.7e-6)))
+        axPA.set_xlim(int(peak - (5e-3)/(32.7e-6)),int(peak + (5e-3)/(32.7e-6)))
         #ax1.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
     else:
         peak = np.argmax(I_t[timestart:timestop])
@@ -515,6 +515,8 @@ class pol_panel(param.Parameterized):
     freq_samp_on = False
     finished = False
     wait = False
+
+    sigflag = False #RM sigflag
     multipeaks = param.Boolean(False)
     maskPA=param.Boolean(False)
     height = param.Number(default=5,bounds=(0,200),step=1e-2)
@@ -547,6 +549,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                 self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                 self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
+                self.comp_dict[self.curr_comp]["sigflag"] = False
                 if self.multipeaks:
                     self.comp_dict[self.curr_comp]["height"] = self.height
                     self.comp_dict[self.curr_comp]["scaled_height"] = self.height*np.max(self.curr_weights)/np.max(self.I_t)
@@ -708,8 +711,10 @@ class pol_panel(param.Parameterized):
 
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
+                self.error2 = str(self.curr_comp)
                 self.param.trigger('next_comp')
-            #self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
+                #self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
+
         except Exception as e:
             self.error = "From clicked_next(): " + str(e)
 
@@ -800,6 +805,7 @@ class pol_panel(param.Parameterized):
                     self.filt_weights_on = False
                     self.freq_samp_on = True
                     self.wait = False
+                    self.error2 = str(self.curr_comp) 
                 else:
                     #save filter weights for current component
                     self.comp_dict[self.curr_comp] =dict()
@@ -816,6 +822,8 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["mask_stop"] = self.complist_max[self.curr_comp]
                     self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                     self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
+                    self.comp_dict[self.curr_comp]["sigflag"] = False
+
 
                     if self.multipeaks:
                         self.comp_dict[self.curr_comp]["height"] = self.height
@@ -980,9 +988,97 @@ class pol_panel(param.Parameterized):
     #summary plot
     def clicked_plot(self):
         try:
-            if self.finished:
+            suffix="_TESTING"
+
+            if self.filt_weights_on and len(self.comp_dict.keys()) > 0 :
+                i = len(self.comp_dict.keys())-1
+
+                self.error = "Exporting summary plot for Component " + str(i+1) + "..."
+                t1 = time.time()
+
+                if self.comp_dict[i]["sigflag"]:
+                    I1 = copy.deepcopy(self.I_RMcal)
+                    Q1 = copy.deepcopy(self.Q_RMcal)
+                    U1 = copy.deepcopy(self.U_RMcal)
+                    V1 = copy.deepcopy(self.V_RMcal)
+                else:
+                    I1 = copy.deepcopy(self.I)
+                    Q1 = copy.deepcopy(self.Q)
+                    U1 = copy.deepcopy(self.U)
+                    V1 = copy.deepcopy(self.V)
+
+                for j in range(len(self.fixed_comps)):
+                    if i != j:
+                        mask = np.zeros(self.I.shape)
+                        TSTART = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_min[j])
+                        TSTOP = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_max[j])
+                        mask[:,int(TSTART):int(TSTOP)] = 1
+
+                        I1 = ma.masked_array(I1,mask)
+                        Q1 = ma.masked_array(Q1,mask)
+                        U1 = ma.masked_array(U1,mask)
+                        V1 = ma.masked_array(V1,mask)
+
+                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False)
+
+                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ "_PEAK" + str(i+1) + suffix + ".pdf"
+
+
+
+
+            elif self.finished:
+
+                #first update previous component plots
+                if len(self.comp_dict.keys()) > 1:
+                    for i in range(len(self.comp_dict.keys())):
+
+                        self.error = "Exporting summary plot for Component " + str(i+1) + "..."
+                        t1 = time.time()
+
+                        if self.comp_dict[i]["sigflag"]:
+                            I1 = copy.deepcopy(self.I_RMcal)
+                            Q1 = copy.deepcopy(self.Q_RMcal)
+                            U1 = copy.deepcopy(self.U_RMcal)
+                            V1 = copy.deepcopy(self.V_RMcal)
+                        else:
+                            I1 = copy.deepcopy(self.I)
+                            Q1 = copy.deepcopy(self.Q)
+                            U1 = copy.deepcopy(self.U)
+                            V1 = copy.deepcopy(self.V)
+
+                        for j in range(len(self.fixed_comps)):
+                            if i != j:
+                                mask = np.zeros(self.I.shape)
+                                TSTART = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_min[j])
+                                TSTOP = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_max[j])
+                                mask[:,int(TSTART):int(TSTOP)] = 1
+
+                                I1 = ma.masked_array(I1,mask)
+                                Q1 = ma.masked_array(Q1,mask)
+                                U1 = ma.masked_array(U1,mask)
+                                V1 = ma.masked_array(V1,mask)
+
+                        dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False)
+
+                        self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ "_PEAK" + str(i+1) + suffix + ".pdf"
+
+
+
+                #final plot
+                if self.sigflag:
+                    I1 = copy.deepcopy(self.I_RMcal)
+                    Q1 = copy.deepcopy(self.Q_RMcal)
+                    U1 = copy.deepcopy(self.U_RMcal)
+                    V1 = copy.deepcopy(self.V_RMcal)
+                else:
+                    I1 = copy.deepcopy(self.I)
+                    Q1 = copy.deepcopy(self.Q)
+                    U1 = copy.deepcopy(self.U)
+                    V1 = copy.deepcopy(self.V)
+
+
                 self.error = "Exporting summary plot..."
-                suffix="_TESTING"
+                t1 = time.time()
 
                 buffLall = self.comp_dict[0]["buff"][0]
                 buffRall = self.comp_dict[len(self.comp_dict.keys())-1]["buff"][1]
@@ -990,10 +1086,10 @@ class pol_panel(param.Parameterized):
 
                 multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
 
-                dsapol.pol_summary_plot(self.I,self.Q,self.U,self.V,self.ids,self.nickname,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=buffall,weighted=True,n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,show=False,input_weights=self.curr_weights,intL=self.timestart + np.min(self.intLs),intR=self.timestart + np.max(self.intRs),multipeaks=multipeaks_all,wind=self.n_t,suffix=suffix,mask_flag=self.maskPA,sigflag=True,plot_weights=False)
+                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=buffall,weighted=True,n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,show=False,input_weights=self.curr_weights,intL=self.timestart + np.min(self.intLs),intR=self.timestart + np.max(self.intRs),multipeaks=multipeaks_all,wind=2*self.n_t,suffix=suffix,mask_flag=self.maskPA,sigflag=self.sigflag,plot_weights=False)
                 #datadir="/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
                 #self.error = str(buffall) + " " +str(self.intLs) + " " + str(self.intRs)+ " " 
-                self.error = "Completed, exported summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ suffix + ".pdf"
+                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ suffix + ".pdf"
             else:
                 self.error = "Not done yet"
             return
@@ -1100,8 +1196,8 @@ class pol_panel(param.Parameterized):
                 for i in range(len(self.fixed_comps)):
                     if i != self.curr_comp:
                         mask = np.zeros(len(self.I_t))
-                        TSTART = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_min[i])
-                        TSTOP = int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_max[i])
+                        TSTART = int(timestart + self.complist_min[i])#int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_min[i])
+                        TSTOP = int(timestart + self.complist_max[i])#int(int(15280/self.n_t) - (5e-3)/(self.n_t*32.7e-6)) + int(self.complist_max[i])
                         mask[int(TSTART):int(TSTOP)] = 1
                         self.I_t = ma.masked_array(self.I_t,mask)
                         self.Q_t = ma.masked_array(self.Q_t,mask)
@@ -1171,6 +1267,13 @@ class pol_panel(param.Parameterized):
 
 
                 self.n_f_prev = self.n_f
+            """ 
+            if self.freq_samp_on or self.finished:
+                self.curr_weights = np.zeros(len(self.curr_weights))
+                for i in range(len(self.comp_dict.keys())):
+                    #self.curr_comp = np.zeros(len(self.curr_comp))
+                    self.curr_weights += self.comp_dict[i]["weights"]
+            """
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
