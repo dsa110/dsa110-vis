@@ -106,7 +106,7 @@ from matplotlib.widgets import TextBox
 
 
 
-def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,maxcomps=4):
+def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,finished=False,maxcomps=4):
     
     fig = plt.figure(figsize=(20,24))
     top = fig.add_gridspec(13,2,hspace=0,top=0.98)
@@ -168,7 +168,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
     paxs[i-1].xaxis.set_major_locator(ticker.NullLocator())
 
     #plot filterweights always
-    if (filt_weights_on or freq_samp_on) and (not wait):
+    if (filt_weights_on or freq_samp_on or finished) and (not wait):
         #ax.text(0,20,str(wait))
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
@@ -205,7 +205,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
 
 
 
-    elif freq_samp_on:
+    elif freq_samp_on or finished:
         intL = np.min(intLs)
         intR = np.max(intRs)
         
@@ -251,6 +251,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
     ax.plot(U_t[timestart:timestop],label="U")
     ax.plot(V_t[timestart:timestop],label="V")
     ax.legend(loc="upper right")
+    axPA.legend(loc="upper right")
 
     #print("check4")
     if comp_choose_on:
@@ -271,7 +272,7 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
     ax.set_ylabel("S/N")
     #plt.show()
 
-    if freq_samp_on:# and len(freq_test[0]) == len(PA_f):
+    if freq_samp_on or finished:# and len(freq_test[0]) == len(PA_f):
         faxs[-1].plot(freq_test[0],I_f,label="I")
         faxs[-1].plot(freq_test[0],Q_f,label="Q")
         faxs[-1].plot(freq_test[0],U_f,label="U")
@@ -346,6 +347,8 @@ class pol_panel(param.Parameterized):
     ParA = -1
     wav_test = [np.zeros(6144)]*4
 
+    ids = ""
+    nicknames = ""
 
     n_t = param.Integer(default=1,bounds=(1,128),label=r'n_t')
     n_t_prev = 1
@@ -398,14 +401,14 @@ class pol_panel(param.Parameterized):
                 #self.error2 = str(self.I.shape)
                 self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
                 t1 = time.time()
-                ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
-                datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ids + "_" + nickname + "/"
+                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+                self.datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ self.ids + "_" + self.nickname + "/"
                 #ibeam = 218
                 #caldate="22-12-18"
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
-                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(datadir,ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(self.datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
                 self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
                 self.freq_test = copy.deepcopy(self.freq_test_init)
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
@@ -510,10 +513,11 @@ class pol_panel(param.Parameterized):
     comp_choose_on = False
     filt_weights_on = False
     freq_samp_on = False
+    finished = False
     wait = False
     multipeaks = param.Boolean(False)
     maskPA=param.Boolean(False)
-    height = param.Number(default=5,bounds=(0,50),step=1e-2)
+    height = param.Number(default=5,bounds=(0,200),step=1e-2)
     intLs = []
     intRs = []
 
@@ -959,17 +963,49 @@ class pol_panel(param.Parameterized):
 
                     self.STEP = 1
                 self.param.trigger('done')
+            if self.freq_samp_on:
+                self.I = dsapol.avg_freq(self.I,self.n_f)
+                self.Q = dsapol.avg_freq(self.Q,self.n_f)
+                self.U = dsapol.avg_freq(self.U,self.n_f)
+                self.V = dsapol.avg_freq(self.V,self.n_f)
+
+                self.finished = True
+                self.freq_samp_on = False
 
         except Exception as e:
             self.error2 = str(len(self.fixed_comps)) + " " + "From clicked_done(): " + str(e) + " " + str(self.comp_dict.keys())
             #self.error2 = "From clicked_done(): " + str(len(self.fixed_comps)) + str(self.curr_comp)
         return
+
+    #summary plot
+    def clicked_plot(self):
+        try:
+            if self.finished:
+                self.error = "Exporting summary plot..."
+                suffix="_TESTING"
+
+                buffLall = self.comp_dict[0]["buff"][0]
+                buffRall = self.comp_dict[len(self.comp_dict.keys())-1]["buff"][1]
+                buffall = [buffLall,buffRall]
+
+                multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
+
+                dsapol.pol_summary_plot(self.I,self.Q,self.U,self.V,self.ids,self.nickname,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=buffall,weighted=True,n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,show=False,input_weights=self.curr_weights,intL=self.timestart + np.min(self.intLs),intR=self.timestart + np.max(self.intRs),multipeaks=multipeaks_all,wind=self.n_t,suffix=suffix,mask_flag=self.maskPA,sigflag=True,plot_weights=False)
+                #datadir="/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
+                #self.error = str(buffall) + " " +str(self.intLs) + " " + str(self.intRs)+ " " 
+                self.error = "Completed, exported summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ suffix + ".pdf"
+            else:
+                self.error = "Not done yet"
+            return
+        except Exception as e:
+            self.error = "From clicked_plot(): " + str(e)
+            return
     #up = param.Action(clicked_up)#clicked)
     #down = param.Action(clicked_down)
     next_comp = param.Action(clicked_next,label="Next")
     get_comp = param.Action(clicked_get,label="Get Components")
     done = param.Action(clicked_done,label='Done')
-
+    exportplot = param.Action(clicked_plot,label='Export Summary Plot')
 
     #polarization
     snr = param.String(default="",label="S/N")
@@ -1138,7 +1174,7 @@ class pol_panel(param.Parameterized):
         #except Exception as e:
         #    self.error = "From view2(): " + str(e)
         #try:
-            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.PA_f,self.PA_f_errs,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA)
+            return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.PA_f,self.PA_f_errs,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA,self.finished)
         except Exception as e:
             print("HERE I AM")
             print(str(e))
