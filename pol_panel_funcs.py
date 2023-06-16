@@ -1021,7 +1021,7 @@ class pol_panel(param.Parameterized):
                         U1 = ma.masked_array(U1,mask)
                         V1 = ma.masked_array(V1,mask)
 
-                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False)
+                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False,timestart=self.comp_dict[i]["timestart"],timestop=self.comp_dict[i]["timestop"])
 
                 self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ "_PEAK" + str(i+1) + suffix + ".pdf"
 
@@ -1060,7 +1060,7 @@ class pol_panel(param.Parameterized):
                                 U1 = ma.masked_array(U1,mask)
                                 V1 = ma.masked_array(V1,mask)
 
-                        dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False)
+                        dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.comp_dict[i]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=self.comp_dict[i]["buff"],weighted=True,n_t_weight=self.comp_dict[i]["n_t_weight"],sf_window_weights=self.comp_dict[i]["sf_window_weights"],show=False,input_weights=self.comp_dict[i]["weights"],intL=self.timestart + self.intLs[i],intR=self.timestart + self.intRs[i],multipeaks=self.comp_dict[i]["multipeaks"],wind=self.n_t,suffix="_PEAK" + str(i+1) + suffix,mask_flag=False,sigflag=self.comp_dict[i]["sigflag"],plot_weights=False,timestart=self.comp_dict[i]["timestart"],timestop=self.comp_dict[i]["timestop"])
 
                         self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ "_PEAK" + str(i+1) + suffix + ".pdf"
 
@@ -1088,7 +1088,10 @@ class pol_panel(param.Parameterized):
 
                 multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
 
-                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=buffall,weighted=True,n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,show=False,input_weights=self.curr_weights,intL=self.timestart + np.min(self.intLs),intR=self.timestart + np.max(self.intRs),multipeaks=multipeaks_all,wind=2*self.n_t,suffix=suffix,mask_flag=self.maskPA,sigflag=self.sigflag,plot_weights=False)
+                timestartall = self.comp_dict[0]["timestart"]
+                timestopall = self.comp_dict[len(self.comp_dict.keys())-1]["timestop"]
+
+                dsapol.pol_summary_plot(I1,Q1,U1,V1,self.ids,self.nickname,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,self.timeaxis,self.fobj,n_off=int(12000/self.n_t),buff=buffall,weighted=True,n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,show=False,input_weights=self.curr_weights,intL=self.timestart + np.min(self.intLs),intR=self.timestart + np.max(self.intRs),multipeaks=multipeaks_all,wind=self.n_t,suffix=suffix,mask_flag=self.maskPA,sigflag=self.sigflag,plot_weights=False,timestart=timestartall,timestop=timestopall)
                 #datadir="/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
                 #self.error = str(buffall) + " " +str(self.intLs) + " " + str(self.intRs)+ " " 
                 self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_pol_summary_plot"+ suffix + ".pdf"
