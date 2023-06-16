@@ -172,8 +172,8 @@ def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_
         #ax.text(0,20,str(wait))
         ax.plot((I_t_weights*np.max(I_t)/np.max(I_t_weights))[timestart:timestop],label="weights",linewidth=4,color="purple",alpha=0.75)
         peak = np.argmax(I_t_weights[timestart:timestop])
-        ax.set_xlim(int(peak - (5e-3)/(32.7e-6)),int(peak + (5e-3)/(32.7e-6)))
-        axPA.set_xlim(int(peak - (5e-3)/(32.7e-6)),int(peak + (5e-3)/(32.7e-6)))
+        ax.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
+        axPA.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
         #ax1.set_xlim(int(peak - (1e-3)/(32.7e-6)),int(peak + (1e-3)/(32.7e-6)))
     else:
         peak = np.argmax(I_t[timestart:timestop])
@@ -365,6 +365,8 @@ class pol_panel(param.Parameterized):
     n_f_prev = 1
     n_f_root = 1
     loaded = False
+
+    #testidx = param.Integer(default=0,bounds=(0,2),label="test")
 
     #polarization display
 
@@ -1274,9 +1276,16 @@ class pol_panel(param.Parameterized):
                     #self.curr_comp = np.zeros(len(self.curr_comp))
                     self.curr_weights += self.comp_dict[i]["weights"]
             """
-        #except Exception as e:
-        #    self.error = "From view2(): " + str(e)
-        #try:
+            #except Exception as e:
+            #    self.error = "From view2(): " + str(e)
+            #try:
+            """
+            if self.finished:
+                if self.testidx == 2:
+                    self.curr_weights = (self.comp_dict[0]["weights"] + self.comp_dict[1]["weights"])/np.sum(self.comp_dict[0]["weights"] + self.comp_dict[1]["weights"])
+                else:
+                    self.curr_weights = self.comp_dict[self.testidx]["weights"]
+            """
             return pol_plot(self.I_t,self.Q_t,self.U_t,self.V_t,self.PA_t,self.PA_t_errs,self.I_f,self.Q_f,self.U_f,self.V_f,self.PA_f,self.PA_f_errs,self.comp_dict,self.freq_test,self.curr_weights,timestart,timestop,self.n_t,self.n_f,self.buff_L,self.buff_R,self.n_t_weight,self.sf_window_weights,self.ibox,self.lo,self.comp_width,self.comp_choose_on,self.fixed_comps,self.filt_weights_on,self.curr_comp,self.freq_samp_on,self.wait,self.multipeaks,self.height,self.intLs,self.intRs,self.maskPA,self.finished)
         except Exception as e:
             print("HERE I AM")
