@@ -348,7 +348,7 @@ class pol_panel(param.Parameterized):
     wav_test = [np.zeros(6144)]*4
 
     ids = ""
-    nicknames = ""
+    nickname = ""
 
     n_t = param.Integer(default=1,bounds=(1,128),label=r'n_t')
     n_t_prev = 1
@@ -1323,7 +1323,7 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
         print("not weighted: " + str(noise))
     return noise
 
-def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM,RM,RMerror,threshold=9):
+def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM,done_RM,RM,RMerror,threshold=9):
     fig = plt.figure(figsize=(20,24))
     ax1 = plt.subplot2grid(shape=(2, 2), loc=(0, 0),colspan=2)
     ax2 = plt.subplot2grid(shape=(2, 2), loc=(1, 0),colspan=2)
@@ -1345,7 +1345,7 @@ def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,R
 
 
     #FINE SYNTHESIS
-    if fine_RM:
+    if fine_RM or done_RM:
         lns = []
         labs = []
         if len(trial_RMzoom) == len(RMsnrszoom):
@@ -1403,6 +1403,7 @@ class RM_panel(param.Parameterized):
     #***Initial RM synthesis + Rm tools***#
     init_RM = True
     fine_RM = False
+    done_RM = False
     trial_RM = np.linspace(-1e6,1e6,1000)
     trial_RM_tools = copy.deepcopy(trial_RM)
     trial_phi = [0]
@@ -1443,6 +1444,9 @@ class RM_panel(param.Parameterized):
     RM2zoom = 0.0
     RMerr2zoom = 0.0
 
+    ids = ""
+    nickname = ""
+    datadir = ""
     def clicked_run(self):
         try:
             #check if there's only one component
@@ -1470,6 +1474,9 @@ class RM_panel(param.Parameterized):
                     self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
                     self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
 
+                    self.fine_RM = False
+                    self.done_RM = True
+
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to copy RM results"
 
             elif self.init_RM:
@@ -1488,7 +1495,11 @@ class RM_panel(param.Parameterized):
                     self.RM1_str = self.RM1_str + ") " + str(np.around(self.RM1,2))
                     self.RMerr1_str = self.RMerr1_str + ") " + str(np.around(self.RMerr1,2))
 
-
+                if self.curr_comp != -1:
+                    self.comp_dict[self.curr_comp]["RM1"] = self.RM1
+                    self.comp_dict[self.curr_comp]["RMerr1"] = self.RMerr1
+                    self.comp_dict[self.curr_comp]["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
+                    self.comp_dict[self.curr_comp]["trial_RM"] = copy.deepcopy(self.trial_RM)
 
                 self.error = "Running initial RM tools..."
                 #trial_RM_tools = np.linspace(-1e6,1e6,int(1e4))
@@ -1542,6 +1553,13 @@ class RM_panel(param.Parameterized):
                     self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
                     self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
 
+                if self.curr_comp != -1:
+                    self.comp_dict[self.curr_comp]["RM1tools"] = self.RM1tools
+                    self.comp_dict[self.curr_comp]["RMerr1tools"] = self.RMerr1tools
+                    self.comp_dict[self.curr_comp]["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
+                    self.comp_dict[self.curr_comp]["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
+
+
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run initial RM synthesis"
 
                 self.init_RM = False
@@ -1583,9 +1601,17 @@ class RM_panel(param.Parameterized):
                     self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
 
 
+                if self.curr_comp != -1:
+                    self.comp_dict[self.curr_comp]["RM1zoom"] = self.RM1zoom
+                    self.comp_dict[self.curr_comp]["RMerr1zoom"] = self.RMerr1zoom
+                    self.comp_dict[self.curr_comp]["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
+                    self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+
 
                 #check if RM in range for RM tools
                 self.RMtools_zoom_flag = np.abs(float(self.RM1zoom)) < 1000
+                if self.curr_comp != -1:
+                    self.comp_dict[self.curr_comp]["RMtools_zoom_flag"] = self.RMtools_zoom_flag
                 if not self.RMtools_zoom_flag:
                     self.error = "RM out of range for RM tools...skipping"
                 else:
@@ -1638,6 +1664,12 @@ class RM_panel(param.Parameterized):
                         self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
                         self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
 
+                    if self.curr_comp != -1:
+                        self.comp_dict[self.curr_comp]["RM1tools_zoom"] = self.RM1tools_zoom
+                        self.comp_dict[self.curr_comp]["RMerr1tools_zoom"] = self.RMerr1tools_zoom
+                        self.comp_dict[self.curr_comp]["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
+                        self.comp_dict[self.curr_comp]["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
+
 
 
                 self.error = "Running fine S/N method..."
@@ -1654,23 +1686,23 @@ class RM_panel(param.Parameterized):
                 if (self.RM2zoom_str == "") and (self.curr_comp != -1):
                     self.RM2zoom_str ="(" + str(np.around(self.RM2zoom,2))
                     self.RMerr2zoom_str = "(" + str(np.around(self.RMerr2zoom,2))
-                    self.comp_dict[self.curr_comp]["RM"] = self.RM2zoom
-                    self.comp_dict[self.curr_comp]["RMerr"] = self.RMerr2zoom
-                    self.comp_dict[self.curr_comp]["RMsnrs"] = copy.deepcopy(self.RMsnrs2zoom)
-                    self.comp_dict[self.curr_comp]["trialRMs"] = copy.deepcopy(self.trial_RM2)
                 elif self.curr_comp != -1:
                     self.RM2zoom_str = self.RM2zoom_str + " ; " + str(np.around(self.RM2zoom,2))
                     self.RMerr2zoom_str = self.RMerr2zoom_str + " ; " + str(np.around(self.RMerr2zoom,2))
-                    self.comp_dict[self.curr_comp]["RM"] = self.RM2zoom
-                    self.comp_dict[self.curr_comp]["RMerr"] = self.RMerr2zoom
-                    self.comp_dict[self.curr_comp]["RMsnrs"] = copy.deepcopy(self.RMsnrs2zoom)
-                    self.comp_dict[self.curr_comp]["trialRMs"] = copy.deepcopy(self.trial_RM2)
                 elif self.curr_comp == -1:
                     self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
                     self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
                 
 
+                if self.curr_comp != -1:
+                    self.comp_dict[self.curr_comp]["RM2zoom"] = self.RM2zoom
+                    self.comp_dict[self.curr_comp]["RMerr2zoom"] = self.RMerr2zoom
+                    self.comp_dict[self.curr_comp]["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
+                    self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
 
+
+                self.fine_RM = False
+                self.done_RM = True
     
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
 
@@ -1679,7 +1711,65 @@ class RM_panel(param.Parameterized):
             self.error = "From clicked_run(): " + str(e) + " " + str(len(self.I_f)) + " " + str(len(self.freq_test))
         return
 
+    #plotting
+    def clicked_plot(self):
+        try:
+            suffix="_TESTING"
+
+            #individual components
+            if self.curr_comp != -1 and self.done_RM:
+                i =  self.curr_comp
+
+                self.error = "Exporting summary plot for Component " + str(i+1) + "..."
+                t1 = time.time()
+
+                RMsnrs = (self.RMsnrs1,self.RMsnrs1tools)
+                if self.RMtools_zoom_flag:
+                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs1tools_zoom,self.RMsnrs2zoom)
+                else:
+                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs2zoom)
+                dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.RM2zoom,self.RMerr2zoom,self.trial_RM,self.trial_RM2,self.trial_RM_tools,self.trial_RM_tools_zoom,threshold=9,suffix="_PEAK" + str(i+1) + suffix,show=False)
+
+                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + "_PEAK" + str(i+1) + suffix + ".pdf"
+
+            #dict_keys(['timestart', 'timestop', 'comp_num', 'buff', 'n_t_weight', 'sf_window_weights', 'ibox', 'mask_start', 'mask_stop', 'weights', 'multipeaks', 'sigflag', 'intL', 'intR', 'I_f', 'Q_f', 'U_f', 'V_f', 'I_f_init', 'Q_f_init', 'U_f_init', 'V_f_init', 'PA_f', 'PA_f_errs', 'PA_f_init', 'PA_f_errs_init', 'PA_pre', 'PAerr_pre', 'T/I_pre', 'T/I_pre_err', 'T/I_pre_snr', 'L/I_pre', 'L/I_pre_err', 'L/I_pre_snr', 'absV/I_pre', 'absV/I_pre_err', 'V/I', 'V/I_err', 'V/I_snr', 'I_snr', 'RM1', 'RMerr1', 'RMsnrs1', 'trial_RM', 'RM1tools', 'RMerr1tools', 'RMsnrs1tools', 'trial_RM_tools', 'RM1zoom', 'RMerr1zoom', 'RMsnrs1zoom', 'trial_RM2', 'RMtools_zoom_flag', 'RM1tools_zoom', 'RMerr1tools_zoom', 'RMsnrs1tools_zoom', 'trial_RM_tools_zoom', 'RM2zoom', 'RMerr2zoom', 'RMsnrs2zoom'])
+            #all components and full burst
+            elif self.curr_comp == -1 and self.done_RM:
+                for i in range(len(self.comp_dict.keys())):
+                    self.error = "Exporting summary plot for Component " + str(i+1) + "..."
+                    t1 = time.time()
+
+                    RMsnrs = (self.comp_dict[i]["RMsnrs1"],self.comp_dict[i]["RMsnrs1tools"])
+                    if self.comp_dict[i]["RMtools_zoom_flag"]:
+                        RMzoomsnrs = (self.comp_dict[i]["RMsnrs1zoom"],self.comp_dict[i]["RMsnrs1tools_zoom"],self.comp_dict[i]["RMsnrs2zoom"])
+                    else:
+                        RMzoomsnrs = (self.comp_dict[i]["RMsnrs1zoom"],self.comp_dict[i]["RMsnrs2zoom"])
+                    dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.comp_dict[i]["RM2zoom"],self.comp_dict[i]["RMerr2zoom"],self.comp_dict[i]["trial_RM"],self.comp_dict[i]["trial_RM2"],self.comp_dict[i]["trial_RM_tools"],self.comp_dict[i]["trial_RM_tools_zoom"],threshold=9,suffix="_PEAK" + str(i+1) + suffix,show=False)
+
+                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + "_PEAK" + str(i+1) + suffix + ".pdf"
+
+                self.error = "Exporting summary plot..."
+                t1 = time.time()
+
+                RMsnrs = (self.RMsnrs1,self.RMsnrs1tools)
+                if self.RMtools_zoom_flag:
+                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs1tools_zoom,self.RMsnrs2zoom)
+                else:
+                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs2zoom)
+                dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.RM2zoom,self.RMerr2zoom,self.trial_RM,self.trial_RM2,self.trial_RM_tools,self.trial_RM_tools_zoom,threshold=9,suffix=suffix,show=False)
+
+                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + suffix + ".pdf"
+
+
+
+
+        except Exception as e:
+            self.error = "From clicked_plot(): " + str(e)
+            self.error = str(self.comp_dict[0].keys())
+
+
     run = param.Action(clicked_run,label="Run")
+    exportplot = param.Action(clicked_plot,label='Export Summary Plot')
 
 
 
@@ -1697,7 +1787,7 @@ class RM_panel(param.Parameterized):
                 rm = float(self.RM2zoom)
                 rmerr = float(self.RMerr2zoom)
             
-            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM,rm,rmerr)
+            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM,self.done_RM,rm,rmerr)
         except Exception as e:
             self.error = "From view(): " + str(e) + " " + str(len(self.trial_RM2)) + " " + str(len(self.RMsnrs2zoom))
             return
