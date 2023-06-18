@@ -455,7 +455,13 @@ class pol_panel(param.Parameterized):
     
                 self.PA_f_init = np.nan*np.ones(len(self.freq_test_init[0]))
                 self.PA_f_errs_init = np.nan*np.ones(len(self.freq_test_init[0]))
-                
+               
+                self.fullburst_dict["I_t_init"] = self.I_t_init
+                self.fullburst_dict["Q_t_init"] = self.Q_t_init
+                self.fullburst_dict["U_t_init"] = self.U_t_init
+                self.fullburst_dict["V_t_init"] = self.V_t_init
+                self.fullburst_dict["PA_t_init"] = self.PA_t_init
+                self.fullburst_dict["PA_t_errs_init"] = self.PA_t_errs_init
 
 
                 self.loaded = True
@@ -799,6 +805,64 @@ class pol_panel(param.Parameterized):
                     self.absCpolerr = self.absCpolerr + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
                     self.Cpolerr = self.Cpolerr + r'{a}%'.format(a=np.around(100*sigma_C,2))
 
+                    #save full burst properties to dict
+                    tmp1 = []
+                    tmp2 = []
+                    b1 = []
+                    b2 = []
+                    intL1 = []
+                    intR2 = []
+                    for k in range(len(self.comp_dict.keys())):
+                        tmp1.append(self.comp_dict[k]["timestart"])
+                        tmp2.append(self.comp_dict[k]["timestop"])
+                        b1.append(self.comp_dict[k]["buff"][0])
+                        b2.append(self.comp_dict[k]["buff"][1])
+                        intL1.append(self.comp_dict[k]["intL"])
+                        intR2.append(self.comp_dict[k]["intR"])
+
+                    self.fullburst_dict["timestart"] = np.min(tmp1)
+                    self.fullburst_dict["timestop"] = np.max(tmp2)
+                    self.fullburst_dict["num_comps"] = len(self.comp_dict.keys())
+                    self.fullburst_dict["buff"] = (np.min(b1),np.max(b2))
+                    self.fullburst_dict["weights"] = self.curr_weights
+                    self.fullburst_dict["multipeaks_all"] = multipeaks_all
+                    self.fullburst_dict["sigflag"] = False
+                    self.fullburst_dict["intL"] = np.min(intL1)
+                    self.fullburst_dict["intR"] = np.max(intR2)
+
+
+                    self.fullburst_dict["I_f"] = self.I_f_init
+                    self.fullburst_dict["Q_f"] = self.Q_f_init
+                    self.fullburst_dict["U_f"] = self.U_f_init
+                    self.fullburst_dict["V_f"] = self.V_f_init
+
+                    self.fullburst_dict["I_f_init"] = self.I_f_init
+                    self.fullburst_dict["Q_f_init"] = self.Q_f_init
+                    self.fullburst_dict["U_f_init"] = self.U_f_init
+                    self.fullburst_dict["V_f_init"] = self.V_f_init
+
+                    self.fullburst_dict["PA_f"] = self.PA_f_init
+                    self.fullburst_dict["PA_f_errs"] = self.PA_f_errs_init
+
+                    self.fullburst_dict["PA_f_init"] = self.PA_f_init
+                    self.fullburst_dict["PA_f_errs_init"] = self.PA_f_errs_init
+
+                    self.fullburst_dict["PA_pre"] = avg_PA
+                    self.fullburst_dict["PAerr_pre"] = sigma_PA
+
+                    self.fullburst_dict["T/I_pre"] = avg_frac
+                    self.fullburst_dict["T/I_pre_err"] = sigma_frac
+                    self.fullburst_dict["T/I_pre_snr"] = snr_frac
+                    self.fullburst_dict["L/I_pre"] = avg_L
+                    self.fullburst_dict["L/I_pre_err"] = sigma_L
+                    self.fullburst_dict["L/I_pre_snr"] = snr_L
+                    self.fullburst_dict["absV/I_pre"] = avg_C_abs
+                    self.fullburst_dict["absV/I_pre_err"] = sigma_C_abs
+                    self.fullburst_dict["V/I"] = avg_C
+                    self.fullburst_dict["V/I_err"] = sigma_C
+                    self.fullburst_dict["V/I_snr"] = snr_C
+                    self.fullburst_dict["I_snr"] = snr
+
 
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
@@ -968,6 +1032,67 @@ class pol_panel(param.Parameterized):
                     self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full polarization"
 
+
+
+                    #save full burst properties to dict
+                    tmp1 = []
+                    tmp2 = []
+                    b1 = []
+                    b2 = []
+                    intL1 = []
+                    intR2 = []
+                    for k in range(len(self.comp_dict.keys())):
+                        tmp1.append(self.comp_dict[k]["timestart"])
+                        tmp2.append(self.comp_dict[k]["timestop"])
+                        b1.append(self.comp_dict[k]["buff"][0])
+                        b2.append(self.comp_dict[k]["buff"][1])
+                        intL1.append(self.comp_dict[k]["intL"])
+                        intR2.append(self.comp_dict[k]["intR"])
+
+                    self.fullburst_dict["timestart"] = np.min(tmp1)
+                    self.fullburst_dict["timestop"] = np.max(tmp2)
+                    self.fullburst_dict["num_comps"] = len(self.comp_dict.keys())
+                    self.fullburst_dict["buff"] = (np.min(b1),np.max(b2))
+                    self.fullburst_dict["weights"] = self.curr_weights
+                    self.fullburst_dict["multipeaks_all"] = multipeaks_all
+                    self.fullburst_dict["sigflag"] = False
+                    self.fullburst_dict["intL"] = np.min(intL1)
+                    self.fullburst_dict["intR"] = np.max(intR2)
+
+
+                    self.fullburst_dict["I_f"] = self.I_f_init
+                    self.fullburst_dict["Q_f"] = self.Q_f_init
+                    self.fullburst_dict["U_f"] = self.U_f_init
+                    self.fullburst_dict["V_f"] = self.V_f_init
+
+                    self.fullburst_dict["I_f_init"] = self.I_f_init
+                    self.fullburst_dict["Q_f_init"] = self.Q_f_init
+                    self.fullburst_dict["U_f_init"] = self.U_f_init
+                    self.fullburst_dict["V_f_init"] = self.V_f_init
+
+                    self.fullburst_dict["PA_f"] = self.PA_f_init
+                    self.fullburst_dict["PA_f_errs"] = self.PA_f_errs_init
+
+                    self.fullburst_dict["PA_f_init"] = self.PA_f_init
+                    self.fullburst_dict["PA_f_errs_init"] = self.PA_f_errs_init
+
+                    self.fullburst_dict["PA_pre"] = avg_PA
+                    self.fullburst_dict["PAerr_pre"] = sigma_PA
+
+                    self.fullburst_dict["T/I_pre"] = avg_frac
+                    self.fullburst_dict["T/I_pre_err"] = sigma_frac
+                    self.fullburst_dict["T/I_pre_snr"] = snr_frac
+                    self.fullburst_dict["L/I_pre"] = avg_L
+                    self.fullburst_dict["L/I_pre_err"] = sigma_L
+                    self.fullburst_dict["L/I_pre_snr"] = snr_L
+                    self.fullburst_dict["absV/I_pre"] = avg_C_abs
+                    self.fullburst_dict["absV/I_pre_err"] = sigma_C_abs
+                    self.fullburst_dict["V/I"] = avg_C
+                    self.fullburst_dict["V/I_err"] = sigma_C
+                    self.fullburst_dict["V/I_snr"] = snr_C
+                    self.fullburst_dict["I_snr"] = snr
+
+
                     self.filt_weights_on = False
                     self.freq_samp_on = True
 
@@ -1126,6 +1251,7 @@ class pol_panel(param.Parameterized):
 
     #***FILTER WEIGHTS MODULE***#
     comp_dict = dict()
+    fullburst_dict = dict()
     curr_comp = 0
     curr_weights = []
 
@@ -1193,6 +1319,13 @@ class pol_panel(param.Parameterized):
                     L_t = np.sqrt(L_t**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
                     self.PA_t_errs = dsapol.PA_error_NKC_array(self.PA_t,L_t,np.std(self.I_t[:int(12000/self.n_t)]))
 
+            self.fullburst_dict["I_t"] = self.I_t
+            self.fullburst_dict["Q_t"] = self.Q_t
+            self.fullburst_dict["U_t"] = self.U_t
+            self.fullburst_dict["V_t"] = self.V_t
+            self.fullburst_dict["PA_t"] = self.PA_t
+            self.fullburst_dict["PA_t_errs"] = self.PA_t_errs
+
             self.n_t_prev = self.n_t
 
 
@@ -1244,6 +1377,13 @@ class pol_panel(param.Parameterized):
                         L_f[L_f**2 <= (unbias_factor*np.std(self.I_t[:int(12000/self.n_t)]))**2] = np.std(self.I_t[:int(12000/self.n_t)])
                         L_f = np.sqrt(L_f**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
                         self.PA_f_errs = dsapol.PA_error_NKC_array(self.PA_f,L_f,np.std(self.I_t[:int(12000/self.n_t)]))
+
+                self.fullburst_dict["I_f"] = self.I_f
+                self.fullburst_dict["Q_f"] = self.Q_f
+                self.fullburst_dict["U_f"] = self.U_f
+                self.fullburst_dict["V_f"] = self.V_f
+                self.fullburst_dict["PA_f"] = self.PA_f
+                self.fullburst_dict["PA_f_errs"] = self.PA_f_errs
 
 
 
@@ -1398,6 +1538,7 @@ class RM_panel(param.Parameterized):
     timestart_in = 0
     timestop_in = 0
     comp_dict = dict()
+    fullburst_dict = dict()
     curr_comp = 0
 
     #***Initial RM synthesis + Rm tools***#
@@ -1461,18 +1602,45 @@ class RM_panel(param.Parameterized):
                     self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
                     self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
                 
-            
+                    self.fullburst_dict["RM1"] = self.RM1
+                    self.fullburst_dict["RMerr1"] = self.RMerr1
+                    self.fullburst_dict["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
+                    self.fullburst_dict["trial_RM"] = copy.deepcopy(self.trial_RM)
+
+                    self.fullburst_dict["RM1tools"] = self.RM1tools
+                    self.fullburst_dict["RMerr1tools"] = self.RMerr1tools
+                    self.fullburst_dict["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
+                    self.fullburst_dict["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
+
                     self.init_RM = False
                     self.fine_RM = True
                 elif self.fine_RM:
                     self.RM1zoom_str = self.RM1zoom_str + ") " + str(np.around(self.RM1zoom,2))
                     self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
-                    
-                    self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
-                    self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
+
+                    self.fullburst_dict["RM1zoom"] = self.RM1zoom
+                    self.fullburst_dict["RMerr1zoom"] = self.RMerr1zoom
+                    self.fullburst_dict["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
+                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+
+
+                    if self.RMtools_zoom_flag:
+                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
+                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
+
+                        self.fullburst_dict["RM1tools_zoom"] = self.RM1tools_zoom
+                        self.fullburst_dict["RMerr1tools_zoom"] = self.RMerr1tools_zoom
+                        self.fullburst_dict["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
+                        self.fullburst_dict["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
 
                     self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
                     self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
+
+                    self.fullburst_dict["RM2zoom"] = self.RM2zoom
+                    self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
+                    self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
+                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+
 
                     self.fine_RM = False
                     self.done_RM = True
@@ -1500,6 +1668,12 @@ class RM_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["RMerr1"] = self.RMerr1
                     self.comp_dict[self.curr_comp]["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
                     self.comp_dict[self.curr_comp]["trial_RM"] = copy.deepcopy(self.trial_RM)
+                else:
+                    self.fullburst_dict["RM1"] = self.RM1
+                    self.fullburst_dict["RMerr1"] = self.RMerr1
+                    self.fullburst_dict["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
+                    self.fullburst_dict["trial_RM"] = copy.deepcopy(self.trial_RM)
+
 
                 self.error = "Running initial RM tools..."
                 #trial_RM_tools = np.linspace(-1e6,1e6,int(1e4))
@@ -1558,7 +1732,11 @@ class RM_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["RMerr1tools"] = self.RMerr1tools
                     self.comp_dict[self.curr_comp]["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
                     self.comp_dict[self.curr_comp]["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
-
+                else:
+                    self.fullburst_dict["RM1tools"] = self.RM1tools
+                    self.fullburst_dict["RMerr1tools"] = self.RMerr1tools
+                    self.fullburst_dict["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
+                    self.fullburst_dict["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run initial RM synthesis"
 
@@ -1606,12 +1784,21 @@ class RM_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["RMerr1zoom"] = self.RMerr1zoom
                     self.comp_dict[self.curr_comp]["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
                     self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+                else:
+                    self.fullburst_dict["RM1zoom"] = self.RM1zoom
+                    self.fullburst_dict["RMerr1zoom"] = self.RMerr1zoom
+                    self.fullburst_dict["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
+                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
 
 
                 #check if RM in range for RM tools
                 self.RMtools_zoom_flag = np.abs(float(self.RM1zoom)) < 1000
                 if self.curr_comp != -1:
                     self.comp_dict[self.curr_comp]["RMtools_zoom_flag"] = self.RMtools_zoom_flag
+                else:
+                    self.fullburst_dict["RMtools_zoom_flag"] = self.RMtools_zoom_flag
+                
+
                 if not self.RMtools_zoom_flag:
                     self.error = "RM out of range for RM tools...skipping"
                 else:
@@ -1669,8 +1856,13 @@ class RM_panel(param.Parameterized):
                         self.comp_dict[self.curr_comp]["RMerr1tools_zoom"] = self.RMerr1tools_zoom
                         self.comp_dict[self.curr_comp]["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
                         self.comp_dict[self.curr_comp]["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
+                    else:
+                        self.fullburst_dict["RM1tools_zoom"] = self.RM1tools_zoom
+                        self.fullburst_dict["RMerr1tools_zoom"] = self.RMerr1tools_zoom
+                        self.fullburst_dict["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
+                        self.fullburst_dict["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
 
-
+                    
 
                 self.error = "Running fine S/N method..."
 
@@ -1699,7 +1891,11 @@ class RM_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["RMerr2zoom"] = self.RMerr2zoom
                     self.comp_dict[self.curr_comp]["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
                     self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-
+                else:
+                    self.fullburst_dict["RM2zoom"] = self.RM2zoom
+                    self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
+                    self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
+                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
 
                 self.fine_RM = False
                 self.done_RM = True

@@ -149,16 +149,22 @@ def callback_link(target,event,pan1):
     #/itarget.timestop = pan1.timestop
     target.fobj = pan1.fobj
     target.comp_dict = pan1.comp_dict
+    target.fullburst_dict = pan1.fullburst_dict
 
     #reset flags
     target.init_RM = True
     target.fine_RM = False
+    target.done_RM = False
+
+    target.ids = pan1.ids
+    target.nickname = pan1.nickname
+    target.datadir = pan1.datadir
 
     #target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to transfer data"
 
 def callback_linkback(target,event,pan2):
     target.comp_dict = pan2.comp_dict
-
+    target.fullburst_dict = pan2.fullburst_dict
 
 #RM calibration
 def callback_RMcal(target,event,pan2):
@@ -175,6 +181,7 @@ def callback_RMcal(target,event,pan2):
         if pan2.curr_comp == -1:
             target.error = "Derotating full burst to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
+            target.sigflag = True
             I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
 
@@ -217,6 +224,8 @@ def callback_RMcal(target,event,pan2):
         elif pan2.curr_comp != -1:
             target.error = "Derotating component " + str(pan2.curr_comp) + " to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
+            target.comp_dict[pan2.curr_comp]["sigflag"] = True
+            pan2.comp_dict[pan2.curr_comp]["sigflag"] = True
             I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
 
