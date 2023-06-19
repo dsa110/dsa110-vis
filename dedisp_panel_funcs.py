@@ -171,7 +171,13 @@ class dedisp_panel(param.Parameterized):
     #frb_submitted = param.String(default="")#param.Integer(default=0,bounds=(0,8),label=r'clicks')
     #frb_loaded = False
     frb_name = param.String(default="")
+    caldate = param.String(default="")
     error = param.String(default="",label="output/errors")
+    ids = ""
+    nickname = ""
+    ibeam = 0
+    mjd = ""
+
 
     I_init_dmzero = np.zeros((20480,6144))
     I_init = np.zeros((20480,6144))
@@ -222,14 +228,14 @@ class dedisp_panel(param.Parameterized):
                 #self.error2 = str(self.I.shape)
                 self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
                 t1 = time.time()
-                ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
-                datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ids + "_" + nickname + "/"
+                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+                datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
                 #ibeam = 218
                 #caldate="22-12-18"
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
-                (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
                 self.I_init = copy.deepcopy(self.I)
                 self.I_init_dmzero = copy.deepcopy(self.I)
                 #(self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
@@ -284,7 +290,28 @@ class dedisp_panel(param.Parameterized):
         except Exception as e:
             self.error = "From clicked_apply(): " + str(e)
 
-    apply = param.Action(clicked_apply,label="Apply")
+    
+    #after ideal DM determined, recompute filterbanks with toolkit script
+    def clicked_recompute(self):
+        try:
+            t1 = time.time()
+            if self.ddm != 0:
+                self.error = "Running toolkit script for DM " + str(self.final_DM_str) + " pc/cc..."
+                command = "/media/ubuntu/ssd/sherman/code/run_beamformer_visibs_bfweightsupdate_sb.bash NA " + str(self.ids) + " "  + str(self.nickname) + " " + str(self.caldate) + " "  + str(self.ibeam) + " " + str(self.mjd) + " " + str(self.final_DM) #${datestrings[$i]} ${candnames[$i]} ${nicknames[$i]} ${dates[$i]} ${bms[$i]} ${mjds[$i]} ${dms[$i]}
+                os.system(command)
+                self.DM = self.final_DM
+                self.ddm = 0
+                self.ddm_str = "0"
+
+            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute filterbanks"
+
+        except Exception as e:
+            self.error = "From clicked_recompute(): " + str(e)
+
+
+
+    applyb = param.Action(clicked_apply,label="Apply")
+    recompute_filterbanks = param.Action(clicked_recompute,label="Re-Compute Filterbanks")
 
 
 
