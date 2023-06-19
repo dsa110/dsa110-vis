@@ -225,11 +225,30 @@ class dedisp_panel(param.Parameterized):
     def load_FRB(self):
         try:
             if self.error=="Loading FRB...":
+                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+
+                #first check that FRB already has a filterbank created
+                x=os.listdir("/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us")
+                FRB_list = []
+                for i in range(len(x)):
+                    if len(x[i]) >= 10 and x[i][10] == "_":
+                        FRB_list.append(x[i])
+                if self.frb_name not in FRB_list:
+                    #create filterbank if nonexistent
+                    self.error = "Creating initial filterbanks dedispersed to DM = " + str(self.DM) + " pc/cc..."
+                    t1 = time.time()
+                    command = "/media/ubuntu/ssd/sherman/code/run_beamformer_visibs_bfweightsupdate_sb.bash NA " + str(self.ids) + " "  + str(self.nickname) + " " + str(self.caldate) + " "  + str(self.ibeam) + " " + str(self.mjd) + " " + str(self.DM) #${datestrings[$i]} ${candnames[$i]} ${nicknames[$i]} ${dates[$i]} ${bms[$i]} ${mjds[$i]} ${dms[$i]}
+                    self.error = command
+                    os.system(command)
+                    
+                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to create initial filterbanks"
+
                 #self.error2 = str(self.I.shape)
                 self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
                 t1 = time.time()
-                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+                #self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+                #self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
                 datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
                 #ibeam = 218
                 #caldate="22-12-18"
