@@ -107,6 +107,9 @@ def callback_cal(target,event):
 def callback_savefil(target,event):
     target.error = "Saving Calibrated Filterbanks..."
     return
+def callback_savefilRM(target,event):
+    target.error = "Saving RM Calibrated Filterbanks..."
+    return
 
 #link IQUV from panel1 to panel 2
 def callback_link(target,event,pan1):
@@ -220,6 +223,8 @@ def callback_RMcal(target,event,pan2):
 
             target.avgPA = target.avgPA[:target.avgPA.index(")") + 2] + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))
             target.avgPAerr = target.avgPAerr[:target.avgPAerr.index(")") + 2] + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
+
+            target.rmcalibrated_all = True
             target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
 
 

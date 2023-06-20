@@ -368,6 +368,7 @@ class pol_panel(param.Parameterized):
     loaded = False
     calibrated = False
     saved = False
+    rmcalibrated_all = False
 
     #testidx = param.Integer(default=0,bounds=(0,2),label="test")
 
@@ -532,6 +533,26 @@ class pol_panel(param.Parameterized):
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to save calibrated filterbank"
             else:
                 self.error = "Please load and calibrate data before saving filterbanks"
+        except Exception as e:
+            self.error = "From savefil(): " + str(e)
+
+    def savefilRM(self):
+        try:
+            if self.error=="Saving RM Calibrated Filterbanks..." and self.loaded and self.rmcalibrated_all:
+                self.error = "Saving RM Calibrated Filterbanks..."
+                t1 = time.time()
+
+                #need to create new filterbank object if different sampling
+                if self.calibrated:
+                    suff = "polcal_RMcal"
+                else:
+                    suff = "RMcal"
+                newfobj = copy.copy(self.fobj)
+                newfobj.header = self.fobj.header.newHeader(update_dict={'nsamples':self.I_RMcal.shape[1],'nsamples_list':[self.I_RMcal.shape[1]], 'tsamp':self.n_t_root*self.n_t*self.fobj.header.tsamp, 'nchans':self.I_RMcal.shape[0]})
+                dsapol.put_stokes_2D(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,newfobj,self.datadir,self.frb_name,suffix=suff)
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to save RM calibrated filterbank"
+            else:
+                self.error = "Please load and RM calibrate data before saving filterbanks"
         except Exception as e:
             self.error = "From savefil(): " + str(e)
 
@@ -1302,6 +1323,9 @@ class pol_panel(param.Parameterized):
 
             if self.error == "Saving Calibrated Filterbanks...":
                 self.savefil()
+
+            if self.error == "Saving RM Calibrated Filterbanks...":
+                self.savefilRM()
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)
