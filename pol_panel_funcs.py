@@ -364,7 +364,10 @@ class pol_panel(param.Parameterized):
     n_f = 1
     n_f_prev = 1
     n_f_root = 1
+    n_t_root = 1
     loaded = False
+    calibrated = False
+    saved = False
 
     #testidx = param.Integer(default=0,bounds=(0,2),label="test")
 
@@ -421,6 +424,7 @@ class pol_panel(param.Parameterized):
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
                 #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
                 self.n_f_root = self.n_f
+                self.n_t_root = self.n_t
                 self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
                 self.n_f = 1
                 self.n_f_prev = 1
@@ -471,44 +475,65 @@ class pol_panel(param.Parameterized):
 
 
     def cal_FRB(self):
-        if self.error=="Calibrating FRB...":
-            self.error = "Calibrating FRB...."
-            t1 = time.time()
-            with open("/media/ubuntu/ssd/sherman/code/" + self.cal_name,'r') as csvfile:
-                reader = csv.reader(csvfile,delimiter=",")
-                for row in reader:
-                    if row[0] == "|gxx|/|gyy|":
-                        tmp_ratio = np.array(row[1:],dtype="float")
-                    elif row[0] == "|gxx|/|gyy| fit":
-                        tmp_ratio_fit = np.array(row[1:],dtype="float")
-                    if row[0] == "phixx-phiyy":
-                        tmp_phase = np.array(row[1:],dtype="float")
-                    if row[0] == "phixx-phiyy fit":
-                        tmp_phase_fit = np.array(row[1:],dtype="float")
-                    if row[0] == "|gyy|":
-                        tmp_gainY = np.array(row[1:],dtype="float")
-                    if row[0] == "|gyy| FIT":
-                        tmp_gainY_fit = np.array(row[1:],dtype="float")
-                    if row[0] == "gxx":
-                        self.gxx = np.array(row[1:],dtype="complex")
-                    if row[0] == "gyy":
-                        self.gyy = np.array(row[1:],dtype="complex")
-                    if row[0] == "freq_axis":
-                        tmp_freq_axis = np.array(row[1:],dtype="float")
+        try:
+            if self.error=="Calibrating FRB..." and self.loaded:
+                self.error = "Calibrating FRB...."
+                t1 = time.time()
+                with open("/media/ubuntu/ssd/sherman/code/" + self.cal_name,'r') as csvfile:
+                    reader = csv.reader(csvfile,delimiter=",")
+                    for row in reader:
+                        if row[0] == "|gxx|/|gyy|":
+                            tmp_ratio = np.array(row[1:],dtype="float")
+                        elif row[0] == "|gxx|/|gyy| fit":
+                            tmp_ratio_fit = np.array(row[1:],dtype="float")
+                        if row[0] == "phixx-phiyy":
+                            tmp_phase = np.array(row[1:],dtype="float")
+                        if row[0] == "phixx-phiyy fit":
+                            tmp_phase_fit = np.array(row[1:],dtype="float")
+                        if row[0] == "|gyy|":
+                            tmp_gainY = np.array(row[1:],dtype="float")
+                        if row[0] == "|gyy| FIT":
+                            tmp_gainY_fit = np.array(row[1:],dtype="float")
+                        if row[0] == "gxx":
+                            self.gxx = np.array(row[1:],dtype="complex")
+                        if row[0] == "gyy":
+                            self.gyy = np.array(row[1:],dtype="complex")
+                        if row[0] == "freq_axis":
+                            tmp_freq_axis = np.array(row[1:],dtype="float")
 
-            self.gxx = self.gxx[len(self.gxx)%self.n_f_root:]
-            self.gxx = self.gxx.reshape(len(self.gxx)//self.n_f_root,self.n_f_root).mean(1)
+                self.gxx = self.gxx[len(self.gxx)%self.n_f_root:]
+                self.gxx = self.gxx.reshape(len(self.gxx)//self.n_f_root,self.n_f_root).mean(1)
 
-            self.gyy = self.gyy[len(self.gyy)%self.n_f_root:]
-            self.gyy = self.gyy.reshape(len(self.gyy)//self.n_f_root,self.n_f_root).mean(1)
+                self.gyy = self.gyy[len(self.gyy)%self.n_f_root:]
+                self.gyy = self.gyy.reshape(len(self.gyy)//self.n_f_root,self.n_f_root).mean(1)
 
-            self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
-            self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
-            self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
+                self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
+                self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
+                self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
 
-            (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+                (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
 
-            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to calibrate data"
+                self.calibrated = True
+        except Exception as e:
+            self.error = "From cal_FRB(): " + str(e)
+        return
+
+    def savefil(self):
+        try:
+            if self.error=="Saving Calibrated Filterbanks..." and self.loaded and self.calibrated:
+                self.error = "Saving Calibrated Filterbanks..."
+                t1 = time.time()
+
+                #need to create new filterbank object if different sampling
+                newfobj = copy.copy(self.fobj)
+                newfobj.header = self.fobj.header.newHeader(update_dict={'nsamples':self.I_init.shape[1],'nsamples_list':[self.I_init.shape[1]], 'tsamp':self.n_t_root*self.fobj.header.tsamp, 'nchans':self.I_init.shape[0]})
+                dsapol.put_stokes_2D(self.I_init,self.Q_init,self.U_init,self.V_init,newfobj,self.datadir,self.frb_name,suffix="polcal")
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to save calibrated filterbank"
+            else:
+                self.error = "Please load and calibrate data before saving filterbanks"
+        except Exception as e:
+            self.error = "From savefil(): " + str(e)
 
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
@@ -1274,6 +1299,9 @@ class pol_panel(param.Parameterized):
 
             if self.error == "Calibrating FRB...":
                 self.cal_FRB()
+
+            if self.error == "Saving Calibrated Filterbanks...":
+                self.savefil()
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)

@@ -104,6 +104,9 @@ def callback(target, event):
 def callback_cal(target,event):
     target.error = "Calibrating FRB..."
     return
+def callback_savefil(target,event):
+    target.error = "Saving Calibrated Filterbanks..."
+    return
 
 #link IQUV from panel1 to panel 2
 def callback_link(target,event,pan1):
@@ -382,5 +385,6 @@ def callback_RMcal(target,event,pan2):
 
     except Exception as e:
         target.error2 = "From callback_RMcal(): " + str(e)
+
 
 
