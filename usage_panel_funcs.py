@@ -2,7 +2,14 @@
 dedisp_usage_str = """
     ### **Dedispersion Tab Usage**
     
-    *Insert dedispersion tab usage here*
+    *Functionality*: The dedispersion tab is an interface for tuning to the ideal DM. The user can lead an FRB pre-dedispersed or at DM = 0, and after tuning the DM, can recompute the de-dispersed filterbanks from voltage files.
+
+    *Procedure*
+
+    * **Load Data (if initial filterbanks already computed)**: Click on the dropdown menu labelled 'Select FRB to Load' to choose the FRB filterbank set to load. The selected FRB's name is displayed in the 'Frb name' text box. Enter the DM that the current filterbank files are de-dispersed to in the 'Input DM (pc/cc)' box. Click 'Load FRB' to begin reading in the Stokes I filterbank data at native resolution (32.7 us, 30.5 kHz). Reading in data may take up to 10 minutes; to reduce latency, adjust the 'n_t' and 'log2(n_f)' sliders to downsample in time or frequency respectively. Downsampling at this stage will dictate the highest resolution that can be analyzed, and 'n_t' and 'log2(n_f)' will be reset to 1 and 0 respectively after 'Load FRB' is clicked. The FRB time series in a window of 5 ms around the peak will be displayed in the top plot.
+
+    * **Load Data (if no initial filterbanks computed)**: If no filterbank files have been generated, but voltage files exist for an FRB, the *toolkit* script can be called directly from the dedipsersion panel. First, enter the FRB name in the format "Candname_Nickname" (e.g. "220121aat_clare") directly in the textbox labelled 'Frb name'. Click the 'Select Beamformer Weights' dropdown menu and select the date of the beamformer calibration file to be used (in isot format). Use the 'ibeam' slider to enter the detected beam of the FRB, and enter the MJD in the text boxt labelled 'mjd'. If desired, enter a DM in the box labelled 'Input DM (pc/cc)' to dedisperse to an initial DM. Click 'Load FRB' to begin running the *toolkit* script and subsequently load the FRB at the selected time and frequency resolution. The FRB time series in a window of 5 ms around the peak will be displayed in the top plot.
+
     """
 
 pol_usage_str = """
@@ -38,7 +45,14 @@ pol_usage_str = """
     * **Downsample in Frequency**: Once all burst components have been processed, click 'Done'. One can repeat the **Rm Analysis** step described above for the full burst using concatenated weights. Once all RM analysis is complete. The frequency spectra can be downsampled to maximized structure by adjusting the 'log2(n_f)' slider, defined as the log base 2 of the factor 'n_f' by which the frequency axis is downsampled (e.g. log2(n_f) = 0 gives channel bandwidth 30.5 kHz, log2(n_f) = 1 gives channel bandwidth 30.5x2 = 61.0 kHz). Click 'Done' when complete.
 
     *Exporting Plots*
+
     * After completing the **Downsample in Frequency** step, summary plots of the Stokes I dynamic spectrum, time dependent polarization, and polarization spectrum can be output by clicking 'Export Summary Plot'. This will output individual plots for each component, as well as a plot for the full burst. 
+
+    *Saving Filterbank Files*
+
+    * **Polarization Calibrated Filterbanks**: After loading FRB data and polarization calibrating, click 'Save Calibrated Filterbanks' to save filterbanks at the **current resolution**. Calibrated filterbanks will be labelled "polcal" and be output in the same directory as the uncalibrated filterbanks.
+
+    * **RM Calibrated Filterbanks**: After loading FRB data and RM calibrating **the full burst**, click 'Save RM Calibrated Filterbanks' to save filterbanks at he **current resolution**. RM calibrated filterbanks will be derotated to the RM derived for the full burst (i.e. not individual components), labelled "RMcal" and be output to the same directory as the uncalibrated filterbanks. RM calibrated filterbanks can be saved with or without polarization calibrating first, though it is recommended to polarization calibrate prior to running RM synthesis.
 
     """
 
