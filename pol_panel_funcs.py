@@ -327,6 +327,11 @@ class pol_panel(param.Parameterized):
     U_RMcal = np.zeros((20480,6144))
     V_RMcal = np.zeros((20480,6144))
 
+    I_RMcal_init = np.zeros((20480,6144))
+    Q_RMcal_init = np.zeros((20480,6144))
+    U_RMcal_init = np.zeros((20480,6144))
+    V_RMcal_init = np.zeros((20480,6144))
+
 
     I_t_init = np.zeros(20480)
     Q_t_init = np.zeros(20480)
@@ -508,11 +513,19 @@ class pol_panel(param.Parameterized):
                 self.gyy = self.gyy[len(self.gyy)%self.n_f_root:]
                 self.gyy = self.gyy.reshape(len(self.gyy)//self.n_f_root,self.n_f_root).mean(1)
 
-                self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
-                self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
-                self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
+                self.I_init,self.Q_init,self.U_init,self.V_init = dsapol.calibrate(self.I_init,self.Q_init,self.U_init,self.V_init,(self.gxx,self.gyy),stokes=True)
+                self.I_init,self.Q_init,self.U_init,self.V_init,self.ParA = dsapol.calibrate_angle(self.I_init,self.Q_init,self.U_init,self.V_init,self.fobj,self.ibeam,self.RA,self.DEC)
 
-                (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+                self.I = dsapol.avg_freq(dsapol.avg_time(self.I_init,self.n_t),self.n_f)
+                self.Q = dsapol.avg_freq(dsapol.avg_time(self.Q_init,self.n_t),self.n_f)
+                self.U = dsapol.avg_freq(dsapol.avg_time(self.U_init,self.n_t),self.n_f) 
+                self.V = dsapol.avg_freq(dsapol.avg_time(self.V_init,self.n_t),self.n_f)
+
+                #self.I,self.Q,self.U,self.V = dsapol.calibrate(self.I,self.Q,self.U,self.V,(self.gxx,self.gyy),stokes=True)
+                #self.I,self.Q,self.U,self.V,self.ParA = dsapol.calibrate_angle(self.I,self.Q,self.U,self.V,self.fobj,self.ibeam,self.RA,self.DEC)
+                #self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
+
+                (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I_init,self.Q_init,self.U_init,self.V_init,self.ibox,self.fobj.header.tsamp,self.n_t_root,n_off=int(12000//self.n_t_root),plot=False,show=True,normalize=True,buff=1,window=30)
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to calibrate data"
                 self.calibrated = True
@@ -548,8 +561,8 @@ class pol_panel(param.Parameterized):
                 else:
                     suff = "RMcal"
                 newfobj = copy.copy(self.fobj)
-                newfobj.header = self.fobj.header.newHeader(update_dict={'nsamples':self.I_RMcal.shape[1],'nsamples_list':[self.I_RMcal.shape[1]], 'tsamp':self.n_t_root*self.n_t*self.fobj.header.tsamp, 'nchans':self.I_RMcal.shape[0]})
-                dsapol.put_stokes_2D(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,newfobj,self.datadir,self.frb_name,suffix=suff)
+                newfobj.header = self.fobj.header.newHeader(update_dict={'nsamples':self.I_RMcal_init.shape[1],'nsamples_list':[self.I_RMcal_init.shape[1]], 'tsamp':self.n_t_root*self.fobj.header.tsamp, 'nchans':self.I_RMcal_init.shape[0]})
+                dsapol.put_stokes_2D(self.I_RMcal_init,self.Q_RMcal_init,self.U_RMcal_init,self.V_RMcal_init,newfobj,self.datadir,self.frb_name,suffix=suff)
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to save RM calibrated filterbank"
             else:
                 self.error = "Please load and RM calibrate data before saving filterbanks"
@@ -765,7 +778,7 @@ class pol_panel(param.Parameterized):
 
                     self.error = "No more components, click Done"
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
-                self.error2 = str(self.curr_comp)
+                #self.error2 = str(self.curr_comp)
                 self.param.trigger('next_comp')
                 #self.error = str(len(self.comp_dict[self.curr_comp-1]["I_f"]))
 
@@ -917,7 +930,7 @@ class pol_panel(param.Parameterized):
                     self.filt_weights_on = False
                     self.freq_samp_on = True
                     self.wait = False
-                    self.error2 = str(self.curr_comp) 
+                    #self.error2 = str(self.curr_comp) 
                 else:
                     #save filter weights for current component
                     self.comp_dict[self.curr_comp] =dict()
@@ -1144,7 +1157,7 @@ class pol_panel(param.Parameterized):
 
                     self.STEP = 1
                 self.param.trigger('done')
-            if self.freq_samp_on:
+            elif self.freq_samp_on:
                 self.I = dsapol.avg_freq(self.I,self.n_f)
                 self.Q = dsapol.avg_freq(self.Q,self.n_f)
                 self.U = dsapol.avg_freq(self.U,self.n_f)
@@ -1340,6 +1353,7 @@ class pol_panel(param.Parameterized):
 
             #self.n_t_prev = self.n_t
             self.n_f = 2**self.log_n_f
+            print("DEBUGGING: " + str(self.n_f) + " " + str(self.n_f_prev) + " " + str(self.log_n_f) + " " + str(self.freq_samp_on))
             self.n_t_weight = 2**self.log_n_t_weight
 
             #compute timestart, timestop around approx peak
@@ -1399,16 +1413,14 @@ class pol_panel(param.Parameterized):
                         #self.comp_dict[self.curr_comp]["timestart"] = t1
                         #self.comp_dict[self.curr_comp]["timestop"] = t2
                 self.curr_weights = dsapol.get_weights_1D(self.I_t,self.Q_t,self.U_t,self.V_t,-1,-1,self.ibox,self.fobj.header.tsamp,self.n_f,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),buff=[self.buff_L,self.buff_R],n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,padded=True,norm=False,timeaxis=self.timeaxis,fobj=self.fobj)
-        #except Exception as e:
-        #    self.error = "From view1(): " + str(e)
-        #try:
             #get frequency spectrum
             if self.freq_samp_on:
+                print("step 1")
                 self.freq_test = (self.freq_test_init[0])[len(self.freq_test_init[0])%self.n_f:]
                 self.freq_test = self.freq_test.reshape(len(self.freq_test)//self.n_f,self.n_f).mean(1)
                 self.freq_test = [self.freq_test]*4
 
-
+                print("step 2")
                 self.I_f = self.I_f_init[len(self.I_f_init)%self.n_f:]
                 self.I_f = self.I_f.reshape(len(self.I_f)//self.n_f,self.n_f).mean(1)
                 self.Q_f = self.Q_f_init[len(self.Q_f_init)%self.n_f:]
@@ -1420,6 +1432,7 @@ class pol_panel(param.Parameterized):
                 self.PA_f = self.PA_f_init[len(self.PA_f_init)%self.n_f:]
                 self.PA_f = self.PA_f.reshape(len(self.PA_f)//self.n_f,self.n_f).mean(1)
 
+                print("step 3")
                 if self.loaded:
                     if self.n_f == 1:
                         self.PA_f_errs = self.PA_f_errs_init
@@ -1437,7 +1450,7 @@ class pol_panel(param.Parameterized):
                 self.fullburst_dict["PA_f"] = self.PA_f
                 self.fullburst_dict["PA_f_errs"] = self.PA_f_errs
 
-
+                print("step 4")
 
                 for i in range(len(self.comp_dict.keys())):
                     self.comp_dict[i]["I_f"] = self.comp_dict[i]["I_f_init"][len(self.comp_dict[i]["I_f_init"])%self.n_f:]
@@ -1461,8 +1474,8 @@ class pol_panel(param.Parameterized):
                             L_f = np.sqrt(L_f**2 - np.std(self.I_t[:int(12000/self.n_t)])**2)
                             self.comp_dict[i]["PA_f_errs"] = dsapol.PA_error_NKC_array(self.comp_dict[i]["PA_f"],L_f,np.std(self.I_t[:int(12000/self.n_t)]))
 
-
-
+                
+                print("DEBUGGING2: " + str(self.n_f) + " " + str(self.n_f_prev))
                 self.n_f_prev = self.n_f
             """ 
             if self.freq_samp_on or self.finished:
@@ -1485,7 +1498,8 @@ class pol_panel(param.Parameterized):
         except Exception as e:
             print("HERE I AM")
             print(str(e))
-            self.error = "From view3(): " + str(e) + " " + str(len(self.PA_f)) + " " + str(len(self.PA_f_errs)) + " " + str(len(self.freq_test[0]))
+            self.error = "From view3(): " + str(e) + " " + str(len(self.I_f_init)) + " " + str(len(self.I_f)) + " " + str(len(self.freq_test[0]))
+            self.error2 = "ping"
         return
 
 

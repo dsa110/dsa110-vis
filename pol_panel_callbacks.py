@@ -188,12 +188,14 @@ def callback_RMcal(target,event,pan2):
             target.error = "Derotating full burst to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
             target.sigflag = True
-            I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test,stokes=True)
+            target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test_init,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
 
+            target.error = "step 1"
             (target.I_f_init,target.Q_f_init,target.U_f_init,target.V_f_init) = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.curr_weights)
-
-            (target.I_t_init,target.Q_t_init,target.U_t_init,target.V_t_init) = dsapol.get_stokes_vs_time(I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init,1,target.fobj.header.tsamp,1,n_off=int(12000/1),plot=False,show=False,normalize=True)
+            target.error = "step 2"
+            target.I_f, target.Q_f, target.U_f, target.V_f = target.I_f_init,target.Q_f_init,target.U_f_init,target.V_f_init
+            (target.I_t_init,target.Q_t_init,target.U_t_init,target.V_t_init) = dsapol.get_stokes_vs_time(target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init,1,target.fobj.header.tsamp,1,n_off=int(12000/1),plot=False,show=False,normalize=True)
 
 
             target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " to derotate"
@@ -234,13 +236,17 @@ def callback_RMcal(target,event,pan2):
             t1 = time.time()
             target.comp_dict[pan2.curr_comp]["sigflag"] = True
             pan2.comp_dict[pan2.curr_comp]["sigflag"] = True
-            I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test,stokes=True)
+            target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test_init,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
+
+
+
+            #get_stokes_vs_freq(I,Q,U,V,width_native,t_samp,n_f,n_t,freq_test,n_off=3000,plot=False,datadir=DEFAULT_DATADIR,label='',calstr='',ext=ext,show=False,normalize=False,buff=0,weighted=False,n_t_weight=1,timeaxis=None,fobj=None,sf_window_weights=45,input_weights=[]
 
             #(target.I_f_init,target.Q_f_init,target.U_f_init,target.V_f_init) = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.curr_weights)
             target.comp_dict[pan2.curr_comp]["I_f_init"], target.comp_dict[pan2.curr_comp]["Q_f_init"], target.comp_dict[pan2.curr_comp]["U_f_init"], target.comp_dict[pan2.curr_comp]["V_f_init"] = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
             target.comp_dict[pan2.curr_comp]["I_f"], target.comp_dict[pan2.curr_comp]["Q_f"], target.comp_dict[pan2.curr_comp]["U_f"], target.comp_dict[pan2.curr_comp]["V_f"] = target.comp_dict[pan2.curr_comp]["I_f_init"], target.comp_dict[pan2.curr_comp]["Q_f_init"], target.comp_dict[pan2.curr_comp]["U_f_init"], target.comp_dict[pan2.curr_comp]["V_f_init"]
-
+            #target.comp_dict[pan2.curr_comp]["I_f"], target.comp_dict[pan2.curr_comp]["Q_f"], target.comp_dict[pan2.curr_comp]["U_f"], target.comp_dict[pan2.curr_comp]["V_f"] = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,target.n_f,target.n_t,target.freq_test,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
             #(target.I_t_init,target.Q_t_init,target.U_t_init,target.V_t_init) = dsapol.get_stokes_vs_time(I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init,1,target.fobj.header.tsamp,1,n_off=int(12000/1),plot=False,show=False,normalize=True)
 
             target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " to derotate"
@@ -254,13 +260,13 @@ def callback_RMcal(target,event,pan2):
                 h =-1
             [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.ibox,target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000/target.n_t),normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.comp_dict[pan2.curr_comp]["multipeaks"],height=h,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
 
-            PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.comp_dict[pan2.curr_comp]["ibox"],target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000//target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.multipeaks,height=h,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
+
+            PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.comp_dict[pan2.curr_comp]["ibox"],target.fobj.header.tsamp,target.n_t,target.n_f,target.freq_test,n_off=int(12000//target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.multipeaks,height=h,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
+            target.comp_dict[pan2.curr_comp]["PA_f_init"] = PA_fmasked
+            target.comp_dict[pan2.curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
 
             target.comp_dict[pan2.curr_comp]["PA_f"] = PA_fmasked
             target.comp_dict[pan2.curr_comp]["PA_f_errs"] = PA_f_errsmasked
-
-            target.comp_dict[pan2.curr_comp]["PA_f_init"] = PA_fmasked
-            target.comp_dict[pan2.curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
 
             target.comp_dict[pan2.curr_comp]["PA_pre"] = avg_PA
             target.comp_dict[pan2.curr_comp]["PAerr_pre"] = sigma_PA
