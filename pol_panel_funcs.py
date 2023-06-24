@@ -43,6 +43,11 @@ from RMtools_1D.do_RMclean_1D import run_rmclean
 from RMtools_1D.do_QUfit_1D_mnest import run_qufit
 import csv
 
+import os
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+import subprocess
+
 plt.rcParams.update({
                     'font.size': 16,
                     'font.family': 'serif',
@@ -65,6 +70,7 @@ plt.rcParams.update({
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
 import astropy.units as u
+from syshealth.status_mon import get_rm
 
 
 def gauss_scint(x,bw,amp,off):
@@ -1730,6 +1736,58 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
         print("not weighted: " + str(noise))
     return noise
 
+
+
+def command_ionRM(RA,DEC,fobj,datadir,Lat=37.23,Lon=-118.2951):
+
+    #get coordinates
+    c = SkyCoord(ra=RA*u.degree, dec=DEC*u.degree)
+    idx = c.to_string('hmsdms').index(" ")
+    RAstr = c.to_string('hmsdms')[:idx]
+    DECstr = c.to_string('hmsdms')[idx+1:]
+
+    if Lon < 0:
+        c = SkyCoord(ra=-Lon*u.degree, dec=Lat*u.degree)
+        key = "w"
+    else:
+        c = SkyCoord(ra=Lon*u.degree, dec=Lat*u.degree)
+        key = "e"
+    idx = c.to_string('dms').index(" ")
+    Lonstr = c.to_string('dms')[:idx] + "w"
+    Latstr = c.to_string('dms')[idx+1:] + "n"
+
+    date = Time(fobj.header.tstart,format='mjd').isot
+    day = Time(fobj.header.tstart,format='mjd').iso
+    day = day[:day.index(" ")]
+    timeobs = Time(fobj.header.tstart,format='mjd').to_datetime().hour + Time(fobj.header.tstart,format='mjd').to_datetime().minute/60 + Time(fobj.header.tstart,format='mjd').to_datetime().second/3600
+    print(timeobs)
+
+    #file_needed = os.system("python ionFR-master2/url_download.py -d " + day + " -t codg")
+
+    output = subprocess.Popen(["python", "ionFR-master2/url_download.py", "-d" , str(day), "-t", "c1pg"], stdout=subprocess.PIPE ).communicate()[0]
+    p = output.decode()
+    site = p[14:len(p)-p[::-1][1:].index('\n')-2]
+    file_needed = p[len(p)-p[::-1][1:].index('\n')-1:-3] 
+    #construct command to get file needed
+    command = "/media/ubuntu/ssd/sherman/code/ionFR-master2/ionFRM.py" + RAstr + DECstr + " " + Latstr + " " + Lonstr + " " + date + " " + datadir + " " + file_needed
+    #print(command)
+    #command = ["/media/ubuntu/ssd/sherman/code/ionFR-master2/ionFRM.py", RAstr, DECstr, Latstr, Lonstr, date, self.datadir , file_needed]
+
+    return str(site),str(file_needed),str(command),timeobs
+
+def get_ion_rm(timeobs):
+    IonFR_out = np.loadtxt("/media/ubuntu/ssd/sherman/code/IonRM.txt")
+    UT_hr = np.array(IonFR_out[:,0],dtype=float)
+    ionRMs = np.array(IonFR_out[:,3],dtype=float)
+    RMerrs = np.array(IonFR_out[:,4],dtype=float)
+    f = interp1d(UT_hr[-24:],ionRMs[-24:],kind="linear",fill_value="extrapolate")
+    RM_ion = f(timeobs)
+    print(timeobs)
+    ferr = interp1d(UT_hr[-24:],RMerrs[-24:],kind="linear",fill_value="extrapolate")
+    #print(UT_hr)
+    RM_ionerr = ferr(timeobs)
+    return RM_ion,RM_ionerr
+
 def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,RMsnrstoolszoom,trial_RM_tools_zoom,RMsnrs2zoom,init_RM,fine_RM,done_RM,RM,RMerror,threshold=9):
     fig = plt.figure(figsize=(20,24))
     ax1 = plt.subplot2grid(shape=(2, 2), loc=(0, 0),colspan=2)
@@ -1808,6 +1866,23 @@ class RM_panel(param.Parameterized):
     fullburst_dict = dict()
     curr_comp = 0
 
+    RA = 0#np.nan
+    DEC = 0#np.nan
+    calibrated_for_gal_ion_rm = False
+
+    #***Galactic and Ionospheric RM***#
+    RM_gal_str = param.String(default="",label=r'Galactic RM (rad/m^2)')
+    RM_galerr_str = param.String(default="",label=r'error (rad/m^2)')
+    RM_gal = 0
+    RM_galerr = 0
+    got_rm_gal = False
+
+    RM_ion_str = param.String(default="",label=r'Ionospheric RM (rad/m^2)')
+    RM_ionerr_str = param.String(default="",label=r'error (rad/m^2)')
+    RM_ion = 0
+    RM_ionerr = 0
+    got_rm_ion = False
+
     #***Initial RM synthesis + Rm tools***#
     init_RM = True
     fine_RM = False
@@ -1855,6 +1930,11 @@ class RM_panel(param.Parameterized):
     ids = ""
     nickname = ""
     datadir = ""
+
+
+    
+
+
     def clicked_run(self):
         try:
             #check if there's only one component
@@ -2230,9 +2310,47 @@ class RM_panel(param.Parameterized):
             self.error = "From clicked_plot(): " + str(e)
             self.error = str(self.comp_dict[0].keys())
 
+    def clicked_update(self):
+        self.error = "Forcing Display Update..."
+        self.param.trigger('update')
+        return
 
+    update = param.Action(clicked_update,label="Force Display Update")
     run = param.Action(clicked_run,label="Run")
     exportplot = param.Action(clicked_plot,label='Export Summary Plot')
+
+
+
+    def gal_rm_panel(self):
+        #self.error = "Computing Galactic RM..." + str(self.got_rm_gal)
+        t1 = time.time()
+        self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
+        self.RM_gal_str = str(np.around(self.RM_gal,2))
+        self.RM_galerr_str = str(np.around(self.RM_galerr,2))
+        #self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
+        self.got_rm_gal = True
+        #self.clicked_update()
+        return
+    def ion_rm_panel(self):
+        site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.fobj,self.datadir)
+        dir_list = os.listdir(self.datadir)
+        #self.error = site + " " +ion_file
+               
+        #if ion_file not in dir_list:
+        #    self.error = "To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
+        #    #pass
+        if ion_file in dir_list:
+            #self.error = "Computing Ionospheric RM..." + str(self.got_rm_ion)
+            t1 = time.time()
+            os.system(command)
+            self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
+            self.RM_ion_str = str(np.around(self.RM_ion,2))
+            self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
+            #self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM " + str(self.got_rm_ion) + str(self.got_rm_gal)
+            self.got_rm_ion = True
+            #self.clicked_update()
+        return
+
 
 
 
@@ -2250,6 +2368,46 @@ class RM_panel(param.Parameterized):
                 rm = float(self.RM2zoom)
                 rmerr = float(self.RMerr2zoom)
             
+            #get galactic rm
+            """
+            if self.calibrated_for_gal_ion_rm and (self.got_rm_gal==False):# and self.got_rm_ion):
+                self.gal_rm_panel()
+            if self.calibrated_for_gal_ion_rm and (self.got_rm_ion==False):
+                self.ion_rm_panel()
+            """
+            """
+            #get galactic rm
+            if self.calibrated_for_gal_ion_rm and (self.got_rm_gal==False):# and self.got_rm_ion):
+                
+                self.error = "Computing Galactic RM..." + str(self.got_rm_gal)
+                t1 = time.time()
+                self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
+                self.RM_gal_str = str(np.around(self.RM_gal,2))
+                self.RM_galerr_str = str(np.around(self.RM_galerr,2))
+                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
+                self.got_rm_gal = True
+    
+            #get ionospheric rm
+            if self.calibrated_for_gal_ion_rm and (self.got_rm_ion==False):
+                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.fobj,self.datadir)
+                dir_list = os.listdir(self.datadir)
+                #self.error = site + " " +ion_file
+               
+                if ion_file not in dir_list:
+                    self.error = "To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
+                else:
+                    self.error = "Computing Ionospheric RM..." + str(self.got_rm_ion)
+                    t1 = time.time()
+                    os.system(command)
+                    self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
+                    self.RM_ion_str = str(np.around(self.RM_ion,2))
+                    self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
+                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM " + str(self.got_rm_ion) + str(self.got_rm_gal)
+                    self.got_rm_ion = True
+            elif self.got_rm_gal and self.got_rm_ion:
+                self.calibrated_for_gal_ion_rm = False
+                self.error = "all done " + str(self.calibrated_for_gal_ion_rm) + str(self.got_rm_gal) + str(self.got_rm_ion)
+            """
             return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM,self.done_RM,rm,rmerr)
         except Exception as e:
             self.error = "From view(): " + str(e) + " " + str(len(self.trial_RM2)) + " " + str(len(self.RMsnrs2zoom))

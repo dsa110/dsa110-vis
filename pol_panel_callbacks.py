@@ -101,8 +101,12 @@ def callback(target, event):
     target.error = "Loading FRB..."
     #target.frb_submitted = True
     return
-def callback_cal(target,event):
+def callback_cal(target,event,pan2):
     target.error = "Calibrating FRB..."
+    pan2.datadir = target.datadir
+    pan2.fobj = target.fobj
+    pan2.calibrated_for_gal_ion_rm = True
+    #pan2.error = "Calculated galactic RM"
     return
 def callback_savefil(target,event):
     target.error = "Saving Calibrated Filterbanks..."
