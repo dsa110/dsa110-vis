@@ -110,6 +110,9 @@ def callback_savefil(target,event):
 def callback_savefilRM(target,event):
     target.error = "Saving RM Calibrated Filterbanks..."
     return
+def callback_savetxt(target,event):
+    target.error = "Exporting Summary to Text File..."
+    return
 
 #link IQUV from panel1 to panel 2
 def callback_link(target,event,pan1):
@@ -188,6 +191,7 @@ def callback_RMcal(target,event,pan2):
             target.error = "Derotating full burst to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
             target.sigflag = True
+            target.fullburst_dict["sigflag"] = True
             target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test_init,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
 
@@ -207,6 +211,31 @@ def callback_RMcal(target,event,pan2):
             [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.ibox,target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000/target.n_t),normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=multipeaks_all,height=target.height*np.max(target.curr_weights)/np.max(target.I_t),input_weights=target.curr_weights)
 
             target.PA_f_init,tmpPA_t_init,target.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.ibox,target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000//target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.multipeaks,height=target.height*np.max(target.curr_weights)/np.max(target.I_t),input_weights=target.curr_weights)
+
+            target.fullburst_dict["PA_f_init"] = target.PA_f_init#PA_fmasked
+            target.fullburst_dict["PA_f_errs_init"] = target.PA_f_errs_init#PA_f_errsmasked
+
+            target.fullburst_dict["PA_f"] = target.PA_f_init#PA_fmasked
+            target.fullburst_dict["PA_f_errs"] = target.PA_f_errs_init#PA_f_errsmasked
+
+            target.fullburst_dict["PA_post"] = avg_PA
+            target.fullburst_dict["PAerr_post"] = sigma_PA
+
+            target.fullburst_dict["T/I_post"] = avg_frac
+            target.fullburst_dict["T/I_post_err"] = sigma_frac
+            target.fullburst_dict["T/I_post_snr"] = snr_frac
+            target.fullburst_dict["L/I_post"] = avg_L
+            target.fullburst_dict["L/I_post_err"] = sigma_L
+            target.fullburst_dict["L/I_post_snr"] = snr_L
+            target.fullburst_dict["absV/I"] = avg_C_abs
+            target.fullburst_dict["absV/I_err"] = sigma_C_abs
+            target.fullburst_dict["V/I"] = avg_C
+            target.fullburst_dict["V/I_err"] = sigma_C
+            target.fullburst_dict["V/I_snr"] = snr_C
+            target.fullburst_dict["I_snr"] = snr
+
+
+
 
             target.snr = target.snr[:target.snr.index(")") + 2] + r'{a}'.format(a=np.around(snr,2))
             target.Tsnr = target.Tsnr[:target.Tsnr.index(")") + 2] + r'{a}'.format(a=np.around(snr_frac,2))
@@ -268,17 +297,17 @@ def callback_RMcal(target,event,pan2):
             target.comp_dict[pan2.curr_comp]["PA_f"] = PA_fmasked
             target.comp_dict[pan2.curr_comp]["PA_f_errs"] = PA_f_errsmasked
 
-            target.comp_dict[pan2.curr_comp]["PA_pre"] = avg_PA
-            target.comp_dict[pan2.curr_comp]["PAerr_pre"] = sigma_PA
+            target.comp_dict[pan2.curr_comp]["PA_post"] = avg_PA
+            target.comp_dict[pan2.curr_comp]["PAerr_post"] = sigma_PA
 
-            target.comp_dict[pan2.curr_comp]["T/I_pre"] = avg_frac
-            target.comp_dict[pan2.curr_comp]["T/I_pre_err"] = sigma_frac
-            target.comp_dict[pan2.curr_comp]["T/I_pre_snr"] = snr_frac
-            target.comp_dict[pan2.curr_comp]["L/I_pre"] = avg_L
-            target.comp_dict[pan2.curr_comp]["L/I_pre_err"] = sigma_L
-            target.comp_dict[pan2.curr_comp]["L/I_pre_snr"] = snr_L
-            target.comp_dict[pan2.curr_comp]["absV/I_pre"] = avg_C_abs
-            target.comp_dict[pan2.curr_comp]["absV/I_pre_err"] = sigma_C_abs
+            target.comp_dict[pan2.curr_comp]["T/I_post"] = avg_frac
+            target.comp_dict[pan2.curr_comp]["T/I_post_err"] = sigma_frac
+            target.comp_dict[pan2.curr_comp]["T/I_post_snr"] = snr_frac
+            target.comp_dict[pan2.curr_comp]["L/I_post"] = avg_L
+            target.comp_dict[pan2.curr_comp]["L/I_post_err"] = sigma_L
+            target.comp_dict[pan2.curr_comp]["L/I_post_snr"] = snr_L
+            target.comp_dict[pan2.curr_comp]["absV/I"] = avg_C_abs
+            target.comp_dict[pan2.curr_comp]["absV/I_err"] = sigma_C_abs
             target.comp_dict[pan2.curr_comp]["V/I"] = avg_C
             target.comp_dict[pan2.curr_comp]["V/I_err"] = sigma_C
             target.comp_dict[pan2.curr_comp]["V/I_snr"] = snr_C

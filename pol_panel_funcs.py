@@ -354,6 +354,8 @@ class pol_panel(param.Parameterized):
 
     ids = ""
     nickname = ""
+    datadir = ""
+    rm_threshold = 9 #sigma
 
     n_t = param.Integer(default=1,bounds=(1,128),label=r'n_t')
     n_t_prev = 1
@@ -569,6 +571,207 @@ class pol_panel(param.Parameterized):
         except Exception as e:
             self.error = "From savefil(): " + str(e)
 
+
+    #helper to format txt file summary
+    def format_summary(self):
+        try:
+            #header tells calibration status
+            header = "### " +  self.frb_name + " ###\n"
+            if self.calibrated:
+                header += "\n## Polarization Calibrated ##\n"
+                header += "Cal File: " + self.cal_name + "\n"
+                header += "ibeam: " + str(self.ibeam) + "\n"
+                header += "RA: " + str(self.RA) + " degrees \n"
+                header += "Dec: " + str(self.DEC) + " degrees \n"
+                header += "Parallactic Angle: " + str(self.ParA) + " degrees \n"
+
+            if self.rmcalibrated_all:
+                header += "\n## RM Calibrated ##\n"
+
+            #downsampling properties
+            dsamp =  "\nn_t = " + str(self.n_t) + "\n"
+            dsamp += "\nn_f = " + str(self.n_f) + "\n"
+
+
+            #For multiple components
+            datastr = ""
+            if len(self.comp_dict.keys()) > 1:
+                datastr += "\n## " + str(len(self.comp_dict.keys())) + " Components ##\n"
+
+                for i in range(len(self.comp_dict.keys())):
+                    datastr += "\n# Component " + str(i) + ":\n"
+                    
+                    #RM synthesis results
+                    datastr += "RM Synthesis: " + str(self.comp_dict[i]["RM1"]) + " +- " + str(self.comp_dict[i]["RMerr1"]) + " rad/m^2\n"
+                    datastr += "RM Synthesis, zoom: " + str(self.comp_dict[i]["RM1zoom"]) + " +- " + str(self.comp_dict[i]["RMerr1zoom"]) + " rad/m^2\n"
+                    
+                    #RM tools results
+                    datastr += "RM Tools: " + str(self.comp_dict[i]["RM1tools"]) + " +- " + str(self.comp_dict[i]["RMerr1tools"]) + " rad/m^2\n"
+                    datastr += "RM Tools, zoom: " + str(self.comp_dict[i]["RM1tools_zoom"]) + " +- " + str(self.comp_dict[i]["RMerr1tools_zoom"]) + " rad/m^2\n"
+
+                    #RM synthesis results
+                    datastr += "Fine Synthesis: " + str(self.comp_dict[i]["RM2zoom"]) + " +- " + str(self.comp_dict[i]["RMerr2zoom"]) + " rad/m^2\n"
+                    datastr += "Linear S/N: " + str(np.max(self.comp_dict[i]["RMsnrs2zoom"])) + "\n"
+                    
+                    if self.comp_dict[i]["sigflag"]:#self.rm_threshold < np.max(self.comp_dict[i]["RMsnrs2zoom"]):
+                        datastr += "Significant\n"
+                    else:
+                        datastr += "Not Significant\n"
+                    
+                    datastr += "\n"
+
+                    #FWHM
+                    datastr += "FWHM: " + str((self.comp_dict[i]["intR"]-self.comp_dict[i]["intL"])*32.7*1000*self.n_t*self.n_t_root) + " ms ; " + str((self.comp_dict[i]["intR"]-self.comp_dict[i]["intL"])) + " samples\n"
+                    datastr += "\n"
+                   
+                    datastr += "--Before RM Calibration--\n"
+                    #S/N
+                    datastr += "S/N I: " + str(self.comp_dict[i]["I_snr"]) + "\n"
+                    datastr += "S/N T: " + str(self.comp_dict[i]["T/I_pre_snr"]) + "\n"
+                    datastr += "S/N L: " + str(self.comp_dict[i]["L/I_pre_snr"]) + "\n"
+                    datastr += "S/N V: " + str(self.comp_dict[i]["V/I_snr"]) + "\n"
+                    datastr += "\n"
+                        
+                    #Polarization
+
+                    datastr += "Total Polarization: " + str(self.comp_dict[i]["T/I_pre"]) + " +- " + str(self.comp_dict[i]["T/I_pre_err"]) + "\n"
+                    datastr += "Linear Polarization: " + str(self.comp_dict[i]["L/I_pre"]) + " +- " + str(self.comp_dict[i]["L/I_pre_err"]) + "\n"
+                    datastr += "|Circular Polarization|: " + str(self.comp_dict[i]["absV/I"]) + " +- " + str(self.comp_dict[i]["absV/I_err"]) + "\n"
+                    datastr += "Circular Polarization: " + str(self.comp_dict[i]["V/I"]) + " +- " + str(self.comp_dict[i]["V/I_err"]) + "\n"
+                    datastr += "\n"
+
+                    #PA
+                    datastr += "Measured PA: " + str(self.comp_dict[i]["PA_pre"]*180/np.pi) + " +- " + str(self.comp_dict[i]["PAerr_pre"]*180/np.pi) + " degrees\n"
+
+                    if self.comp_dict[i]["sigflag"]:
+                        datastr += "\n--After RM Calibration--\n"
+                        #S/N
+                        datastr += "S/N I: " + str(self.comp_dict[i]["I_snr"]) + "\n"
+                        datastr += "S/N T: " + str(self.comp_dict[i]["T/I_post_snr"]) + "\n"
+                        datastr += "S/N L: " + str(self.comp_dict[i]["L/I_post_snr"]) + "\n"
+                        datastr += "S/N V: " + str(self.comp_dict[i]["V/I_snr"]) + "\n"
+                        datastr += "\n"
+                            
+                        #Polarization
+
+                        datastr += "Total Polarization: " + str(self.comp_dict[i]["T/I_post"]) + " +- " + str(self.comp_dict[i]["T/I_post_err"]) + "\n"
+                        datastr += "Linear Polarization: " + str(self.comp_dict[i]["L/I_post"]) + " +- " + str(self.comp_dict[i]["L/I_post_err"]) + "\n"
+                        datastr += "|Circular Polarization|: " + str(self.comp_dict[i]["absV/I"]) + " +- " + str(self.comp_dict[i]["absV/I_err"]) + "\n"
+                        datastr += "Circular Polarization: " + str(self.comp_dict[i]["V/I"]) + " +- " + str(self.comp_dict[i]["V/I_err"]) + "\n"
+                        datastr += "\n"
+
+                        #PA
+                        datastr += "Intrinsic PPA: " + str(self.comp_dict[i]["PA_post"]*180/np.pi) + " +- " + str(self.comp_dict[i]["PAerr_post"]*180/np.pi) + " degrees\n"
+
+
+
+
+
+
+
+            
+            #full burst
+            datastr += "\n# Full Burst:\n"
+                
+            #RM synthesis results
+            datastr += "RM Synthesis: " + str(self.fullburst_dict["RM1"]) + " +- " + str(self.fullburst_dict["RMerr1"]) + " rad/m^2\n"
+            datastr += "RM Synthesis, zoom: " + str(self.fullburst_dict["RM1zoom"]) + " +- " + str(self.fullburst_dict["RMerr1zoom"]) + " rad/m^2\n"
+                    
+            #RM tools results
+            datastr += "RM Tools: " + str(self.fullburst_dict["RM1tools"]) + " +- " + str(self.fullburst_dict["RMerr1tools"]) + " rad/m^2\n"
+            datastr += "RM Tools, zoom: " + str(self.fullburst_dict["RM1tools_zoom"]) + " +- " + str(self.fullburst_dict["RMerr1tools_zoom"]) + " rad/m^2\n"
+
+            #RM synthesis results
+            datastr += "Fine Synthesis: " + str(self.fullburst_dict["RM2zoom"]) + " +- " + str(self.fullburst_dict["RMerr2zoom"]) + " rad/m^2\n"
+            datastr += "Linear S/N: " + str(np.max(self.fullburst_dict["RMsnrs2zoom"])) + "\n"
+            if self.fullburst_dict["sigflag"]:#self.rm_threshold < np.max(self.fullburst_dict["RMsnrs2zoom"]):
+                datastr += "Significant\n"
+            else:
+                datastr += "Not Signficant\n"
+
+
+            datastr += "\n"
+
+
+            #FWHM
+            datastr += "FWHM: " + str((self.fullburst_dict["intR"]-self.fullburst_dict["intL"])*32.7*1000*self.n_t*self.n_t_root) + " ms ; " + str((self.fullburst_dict["intR"]-self.fullburst_dict["intL"])) + " samples\n"
+            datastr += "\n"
+            datastr += "--Before RM Calibration--\n"
+
+            #S/N
+            datastr += "S/N I: " + str(self.fullburst_dict["I_snr"]) + "\n"
+            datastr += "S/N T: " + str(self.fullburst_dict["T/I_pre_snr"]) + "\n"
+            datastr += "S/N L: " + str(self.fullburst_dict["L/I_pre_snr"]) + "\n"
+            datastr += "S/N V: " + str(self.fullburst_dict["V/I_snr"]) + "\n"
+            datastr += "\n"
+                        
+            #Polarization
+
+            datastr += "Total Polarization: " + str(self.fullburst_dict["T/I_pre"]) + " +- " + str(self.fullburst_dict["T/I_pre_err"]) + "\n"
+            datastr += "Linear Polarization: " + str(self.fullburst_dict["L/I_pre"]) + " +- " + str(self.fullburst_dict["L/I_pre_err"]) + "\n"
+            datastr += "|Circular Polarization|: " + str(self.fullburst_dict["absV/I"]) + " +- " + str(self.fullburst_dict["absV/I_err"]) + "\n"
+            datastr += "Circular Polarization: " + str(self.fullburst_dict["V/I"]) + " +- " + str(self.fullburst_dict["V/I_err"]) + "\n"
+            datastr += "\n"
+
+            #PA
+            datastr += "Measured PPA: " + str(self.fullburst_dict["PA_pre"]*180/np.pi) + " +- " + str(self.fullburst_dict["PAerr_pre"]*180/np.pi) + " degrees\n"
+            
+
+            if self.fullburst_dict["sigflag"]:
+                datastr += "\n--After RM Calibration--\n"
+
+                #S/N
+                datastr += "S/N I: " + str(self.fullburst_dict["I_snr"]) + "\n"
+                datastr += "S/N T: " + str(self.fullburst_dict["T/I_post_snr"]) + "\n"
+                datastr += "S/N L: " + str(self.fullburst_dict["L/I_post_snr"]) + "\n"
+                datastr += "S/N V: " + str(self.fullburst_dict["V/I_snr"]) + "\n"
+                datastr += "\n"
+
+                #Polarization
+
+                datastr += "Total Polarization: " + str(self.fullburst_dict["T/I_post"]) + " +- " + str(self.fullburst_dict["T/I_post_err"]) + "\n"
+                datastr += "Linear Polarization: " + str(self.fullburst_dict["L/I_post"]) + " +- " + str(self.fullburst_dict["L/I_post_err"]) + "\n"
+                datastr += "|Circular Polarization|: " + str(self.fullburst_dict["absV/I"]) + " +- " + str(self.fullburst_dict["absV/I_err"]) + "\n"
+                datastr += "Circular Polarization: " + str(self.fullburst_dict["V/I"]) + " +- " + str(self.fullburst_dict["V/I_err"]) + "\n"
+                datastr += "\n"
+
+                #PA
+                datastr += "Intrinsic PPA: " + str(self.fullburst_dict["PA_post"]*180/np.pi) + " +- " + str(self.fullburst_dict["PAerr_post"]*180/np.pi) + " degrees\n"
+
+
+
+
+
+
+            summary = header + datastr
+            return summary
+
+
+        except Exception as e:
+            self.error = "From format_summary(): " + str(e)
+
+    def savetxt(self):
+        try:
+            if False: #not self.finished:
+                self.error = "Please finish processing before exporting text file"
+
+            else:
+
+                self.error = "Exporting Summary to Text File..."
+                t1 = time.time()
+
+                txtname = self.datadir + self.frb_name + "_summary_TESTING.txt"
+           
+                self.summary = self.format_summary()
+                tfile = open(txtname,"w")
+                tfile.write(self.summary)
+                tfile.close()
+
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to export to text file " + str(txtname)
+
+        except Exception as e:
+            self.error = "From savetxt(): " + str(e)
+
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
     timestart = int(peak - (5e-3)/(32.7e-6))
@@ -687,8 +890,8 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["L/I_pre"] = avg_L
                 self.comp_dict[self.curr_comp]["L/I_pre_err"] = sigma_L
                 self.comp_dict[self.curr_comp]["L/I_pre_snr"] = snr_L
-                self.comp_dict[self.curr_comp]["absV/I_pre"] = avg_C_abs
-                self.comp_dict[self.curr_comp]["absV/I_pre_err"] = sigma_C_abs
+                self.comp_dict[self.curr_comp]["absV/I"] = avg_C_abs
+                self.comp_dict[self.curr_comp]["absV/I_err"] = sigma_C_abs
                 self.comp_dict[self.curr_comp]["V/I"] = avg_C
                 self.comp_dict[self.curr_comp]["V/I_err"] = sigma_C
                 self.comp_dict[self.curr_comp]["V/I_snr"] = snr_C
@@ -915,8 +1118,8 @@ class pol_panel(param.Parameterized):
                     self.fullburst_dict["L/I_pre"] = avg_L
                     self.fullburst_dict["L/I_pre_err"] = sigma_L
                     self.fullburst_dict["L/I_pre_snr"] = snr_L
-                    self.fullburst_dict["absV/I_pre"] = avg_C_abs
-                    self.fullburst_dict["absV/I_pre_err"] = sigma_C_abs
+                    self.fullburst_dict["absV/I"] = avg_C_abs
+                    self.fullburst_dict["absV/I_err"] = sigma_C_abs
                     self.fullburst_dict["V/I"] = avg_C
                     self.fullburst_dict["V/I_err"] = sigma_C
                     self.fullburst_dict["V/I_snr"] = snr_C
@@ -1015,8 +1218,8 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["L/I_pre"] = avg_L
                     self.comp_dict[self.curr_comp]["L/I_pre_err"] = sigma_L
                     self.comp_dict[self.curr_comp]["L/I_pre_snr"] = snr_L
-                    self.comp_dict[self.curr_comp]["absV/I_pre"] = avg_C_abs
-                    self.comp_dict[self.curr_comp]["absV/I_pre_err"] = sigma_C_abs
+                    self.comp_dict[self.curr_comp]["absV/I"] = avg_C_abs
+                    self.comp_dict[self.curr_comp]["absV/I_err"] = sigma_C_abs
                     self.comp_dict[self.curr_comp]["V/I"] = avg_C
                     self.comp_dict[self.curr_comp]["V/I_err"] = sigma_C
                     self.comp_dict[self.curr_comp]["V/I_snr"] = snr_C
@@ -1144,8 +1347,8 @@ class pol_panel(param.Parameterized):
                     self.fullburst_dict["L/I_pre"] = avg_L
                     self.fullburst_dict["L/I_pre_err"] = sigma_L
                     self.fullburst_dict["L/I_pre_snr"] = snr_L
-                    self.fullburst_dict["absV/I_pre"] = avg_C_abs
-                    self.fullburst_dict["absV/I_pre_err"] = sigma_C_abs
+                    self.fullburst_dict["absV/I"] = avg_C_abs
+                    self.fullburst_dict["absV/I_err"] = sigma_C_abs
                     self.fullburst_dict["V/I"] = avg_C
                     self.fullburst_dict["V/I_err"] = sigma_C
                     self.fullburst_dict["V/I_snr"] = snr_C
@@ -1339,6 +1542,9 @@ class pol_panel(param.Parameterized):
 
             if self.error == "Saving RM Calibrated Filterbanks...":
                 self.savefilRM()
+            
+            if self.error == "Exporting Summary to Text File...":
+                self.savetxt()
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)
@@ -1415,12 +1621,10 @@ class pol_panel(param.Parameterized):
                 self.curr_weights = dsapol.get_weights_1D(self.I_t,self.Q_t,self.U_t,self.V_t,-1,-1,self.ibox,self.fobj.header.tsamp,self.n_f,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),buff=[self.buff_L,self.buff_R],n_t_weight=self.n_t_weight,sf_window_weights=self.sf_window_weights,padded=True,norm=False,timeaxis=self.timeaxis,fobj=self.fobj)
             #get frequency spectrum
             if self.freq_samp_on:
-                print("step 1")
                 self.freq_test = (self.freq_test_init[0])[len(self.freq_test_init[0])%self.n_f:]
                 self.freq_test = self.freq_test.reshape(len(self.freq_test)//self.n_f,self.n_f).mean(1)
                 self.freq_test = [self.freq_test]*4
 
-                print("step 2")
                 self.I_f = self.I_f_init[len(self.I_f_init)%self.n_f:]
                 self.I_f = self.I_f.reshape(len(self.I_f)//self.n_f,self.n_f).mean(1)
                 self.Q_f = self.Q_f_init[len(self.Q_f_init)%self.n_f:]
@@ -1432,7 +1636,6 @@ class pol_panel(param.Parameterized):
                 self.PA_f = self.PA_f_init[len(self.PA_f_init)%self.n_f:]
                 self.PA_f = self.PA_f.reshape(len(self.PA_f)//self.n_f,self.n_f).mean(1)
 
-                print("step 3")
                 if self.loaded:
                     if self.n_f == 1:
                         self.PA_f_errs = self.PA_f_errs_init
@@ -1450,7 +1653,6 @@ class pol_panel(param.Parameterized):
                 self.fullburst_dict["PA_f"] = self.PA_f
                 self.fullburst_dict["PA_f_errs"] = self.PA_f_errs
 
-                print("step 4")
 
                 for i in range(len(self.comp_dict.keys())):
                     self.comp_dict[i]["I_f"] = self.comp_dict[i]["I_f_init"][len(self.comp_dict[i]["I_f_init"])%self.n_f:]
@@ -1475,7 +1677,6 @@ class pol_panel(param.Parameterized):
                             self.comp_dict[i]["PA_f_errs"] = dsapol.PA_error_NKC_array(self.comp_dict[i]["PA_f"],L_f,np.std(self.I_t[:int(12000/self.n_t)]))
 
                 
-                print("DEBUGGING2: " + str(self.n_f) + " " + str(self.n_f_prev))
                 self.n_f_prev = self.n_f
             """ 
             if self.freq_samp_on or self.finished:
