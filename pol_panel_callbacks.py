@@ -103,9 +103,6 @@ def callback(target, event):
     return
 def callback_cal(target,event,pan2):
     target.error = "Calibrating FRB..."
-    pan2.datadir = target.datadir
-    pan2.fobj = target.fobj
-    pan2.calibrated_for_gal_ion_rm = True
     #pan2.error = "Calculated galactic RM"
     return
 def callback_savefil(target,event):
@@ -176,6 +173,10 @@ def callback_link(target,event,pan1):
     #target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to transfer data"
 
 def callback_linkback(target,event,pan2):
+    target.RM_gal = pan2.RM_gal
+    target.RM_galerr = pan2.RM_galerr
+    target.RM_ion = pan2.RM_ion
+    target.RM_ionerr = pan2.RM_ionerr
     target.comp_dict = pan2.comp_dict
     target.fullburst_dict = pan2.fullburst_dict
 

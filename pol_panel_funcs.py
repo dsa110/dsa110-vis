@@ -383,6 +383,12 @@ class pol_panel(param.Parameterized):
     saved = False
     rmcalibrated_all = False
 
+    MJD = 0
+    RM_gal = np.nan
+    RM_galerr = np.nan
+    RM_ion = np.nan
+    RM_ionerr = np.nan
+    
     #testidx = param.Integer(default=0,bounds=(0,2),label="test")
 
     #polarization display
@@ -435,7 +441,7 @@ class pol_panel(param.Parameterized):
                 PA_f,self.PA_t_init,PA_f_errs,self.PA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
 
                 #time.sleep(5)
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
+                self.error =  "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
                 #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
                 self.n_f_root = self.n_f
                 self.n_t_root = self.n_t
@@ -599,6 +605,16 @@ class pol_panel(param.Parameterized):
             dsamp += "\nn_f = " + str(self.n_f) + "\n"
 
 
+            #galactic rm
+            rmgalstr = ""
+            if not np.isnan(self.RM_gal) and not np.isnan(self.RM_galerr):
+                rmgalstr += "\nGalactic RM: " + str(self.RM_gal) + " +- " + str(self.RM_galerr) + " rad/m^2\n"
+
+            #ionospheric rm
+            rmionstr = ""
+            if not np.isnan(self.RM_ion) and not np.isnan(self.RM_ionerr):
+                rmionstr += "\nIonospheric RM: " + str(self.RM_ion) + " +- " + str(self.RM_ionerr) + " rad/m^2\n"
+
             #For multiple components
             datastr = ""
             if len(self.comp_dict.keys()) > 1:
@@ -720,7 +736,7 @@ class pol_panel(param.Parameterized):
             datastr += "\n"
 
             #PA
-            datastr += "Measured PPA: " + str(self.fullburst_dict["PA_pre"]*180/np.pi) + " +- " + str(self.fullburst_dict["PAerr_pre"]*180/np.pi) + " degrees\n"
+            datastr += "Measured PA: " + str(self.fullburst_dict["PA_pre"]*180/np.pi) + " +- " + str(self.fullburst_dict["PAerr_pre"]*180/np.pi) + " degrees\n"
             
 
             if self.fullburst_dict["sigflag"]:
@@ -749,7 +765,7 @@ class pol_panel(param.Parameterized):
 
 
 
-            summary = header + datastr
+            summary = header + dsamp + rmgalstr + rmionstr + datastr
             return summary
 
 
@@ -1738,7 +1754,7 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
 
 
 
-def command_ionRM(RA,DEC,fobj,datadir,Lat=37.23,Lon=-118.2951):
+def command_ionRM(RA,DEC,MJD,datadir,Lat=37.23,Lon=-118.2951):
 
     #get coordinates
     c = SkyCoord(ra=RA*u.degree, dec=DEC*u.degree)
@@ -1756,10 +1772,10 @@ def command_ionRM(RA,DEC,fobj,datadir,Lat=37.23,Lon=-118.2951):
     Lonstr = c.to_string('dms')[:idx] + "w"
     Latstr = c.to_string('dms')[idx+1:] + "n"
 
-    date = Time(fobj.header.tstart,format='mjd').isot
-    day = Time(fobj.header.tstart,format='mjd').iso
+    date = Time(MJD,format='mjd').isot
+    day = Time(MJD,format='mjd').iso
     day = day[:day.index(" ")]
-    timeobs = Time(fobj.header.tstart,format='mjd').to_datetime().hour + Time(fobj.header.tstart,format='mjd').to_datetime().minute/60 + Time(fobj.header.tstart,format='mjd').to_datetime().second/3600
+    timeobs = Time(MJD,format='mjd').to_datetime().hour + Time(MJD,format='mjd').to_datetime().minute/60 + Time(MJD,format='mjd').to_datetime().second/3600
     print(timeobs)
 
     #file_needed = os.system("python ionFR-master2/url_download.py -d " + day + " -t codg")
@@ -1868,20 +1884,7 @@ class RM_panel(param.Parameterized):
 
     RA = 0#np.nan
     DEC = 0#np.nan
-    calibrated_for_gal_ion_rm = False
 
-    #***Galactic and Ionospheric RM***#
-    RM_gal_str = param.String(default="",label=r'Galactic RM (rad/m^2)')
-    RM_galerr_str = param.String(default="",label=r'error (rad/m^2)')
-    RM_gal = 0
-    RM_galerr = 0
-    got_rm_gal = False
-
-    RM_ion_str = param.String(default="",label=r'Ionospheric RM (rad/m^2)')
-    RM_ionerr_str = param.String(default="",label=r'error (rad/m^2)')
-    RM_ion = 0
-    RM_ionerr = 0
-    got_rm_ion = False
 
     #***Initial RM synthesis + Rm tools***#
     init_RM = True
@@ -1927,10 +1930,11 @@ class RM_panel(param.Parameterized):
     RM2zoom = 0.0
     RMerr2zoom = 0.0
 
+    frb_name = ""
     ids = ""
     nickname = ""
     datadir = ""
-
+    MJD = 0
 
     
 
@@ -2309,18 +2313,83 @@ class RM_panel(param.Parameterized):
         except Exception as e:
             self.error = "From clicked_plot(): " + str(e)
             self.error = str(self.comp_dict[0].keys())
+        return
 
     def clicked_update(self):
         self.error = "Forcing Display Update..."
         self.param.trigger('update')
         return
 
+    #get galactic RM
+    def clicked_galrm(self):
+        try:
+            self.error = "Computing Galactic RM..."
+            t1 = time.time()
+            self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
+            self.RM_gal_str = str(np.around(self.RM_gal,2))
+            self.RM_galerr_str = str(np.around(self.RM_galerr,2))
+            self.got_rm_gal = True
+            self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
+            self.param.trigger('galrm')
+        except Exception as e:
+            self.error = "From clicked_galrm(): " + str(e)
+            
+        return
+
+    #get ionospheric RM
+    def clicked_ionrm(self):
+        try:
+            if self.datadir == "":
+                self.error = "Please load FRB data prior to computing ionospheric RM"
+
+            else:
+                self.error = "Getting ionospheric RM command..."
+                t1 = time.time()
+                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.MJD,self.datadir)
+                dir_list = os.listdir(self.datadir)
+
+                if ion_file not in dir_list:
+                    self.error = " To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
+                else:
+                    self.error = "Computing ionospheric RM..."
+
+                    os.system(command)
+                    self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
+                    self.RM_ion_str = str(np.around(self.RM_ion,2))
+                    self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
+                    self.got_rm_ion = True
+                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM"
+            self.param.trigger('ionrm')
+
+        except Exception as e:
+            self.error = "From clicked_ionrm(): " + str(e)
+
+        return
+
+
+
+
     update = param.Action(clicked_update,label="Force Display Update")
     run = param.Action(clicked_run,label="Run")
     exportplot = param.Action(clicked_plot,label='Export Summary Plot')
+    
+    #***Galactic and Ionospheric RM***#
+    RM_gal_str = param.String(default="",label=r'Galactic RM (rad/m^2)')
+    RM_galerr_str = param.String(default="",label=r'error (rad/m^2)')
+    RM_gal = 0
+    RM_galerr = 0
+    got_rm_gal = False
 
+    RM_ion_str = param.String(default="",label=r'Ionospheric RM (rad/m^2)')
+    RM_ionerr_str = param.String(default="",label=r'error (rad/m^2)')
+    RM_ion = 0
+    RM_ionerr = 0
+    got_rm_ion = False
 
+    galrm = param.Action(clicked_galrm,label='Compute Galactic RM')
+    ionrm = param.Action(clicked_ionrm,label='Compute Ionospheric RM')
 
+    """
     def gal_rm_panel(self):
         #self.error = "Computing Galactic RM..." + str(self.got_rm_gal)
         t1 = time.time()
@@ -2351,7 +2420,7 @@ class RM_panel(param.Parameterized):
             #self.clicked_update()
         return
 
-
+    """
 
 
     #***VIEWING MODULE***#
@@ -2367,9 +2436,13 @@ class RM_panel(param.Parameterized):
             else:
                 rm = float(self.RM2zoom)
                 rmerr = float(self.RMerr2zoom)
-            
-            #get galactic rm
+       
+            if self.frb_name != "":
+                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+                self.datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ self.ids + "_" + self.nickname + "/"
             """
+            #get galactic rm
             if self.calibrated_for_gal_ion_rm and (self.got_rm_gal==False):# and self.got_rm_ion):
                 self.gal_rm_panel()
             if self.calibrated_for_gal_ion_rm and (self.got_rm_ion==False):
