@@ -774,7 +774,7 @@ class pol_panel(param.Parameterized):
 
     def savetxt(self):
         try:
-            if False: #not self.finished:
+            if not self.finished:
                 self.error = "Please finish processing before exporting text file"
 
             else:
@@ -793,6 +793,89 @@ class pol_panel(param.Parameterized):
 
         except Exception as e:
             self.error = "From savetxt(): " + str(e)
+
+
+    def savejson(self):
+        try:
+            if self.datadir == "":
+                dir_list = []
+                fname = ""
+            else:
+                dir_list = os.listdir(self.datadir)
+                fname = "T2_" + self.ids + "_copy.json"
+            
+            
+            #check if finished
+            if not self.finished:
+                self.error = "Please finish processing before exporting json file"
+
+            elif fname not in dir_list:
+                self.error = "No JSON found in data directory" 
+
+            else:
+                self.error = "Exporting Data to json File..."
+                t1 = time.time()
+
+                #open file
+                f = open(self.datadir + fname,"r")
+                data_dict = json.load(f)
+                f.close()
+
+                #write downsampling parameters
+                data_dict[self.ids]["n_t"] = self.n_t
+                data_dict[self.ids]["n_f"] = self.n_f
+
+                #write number of components
+                data_dict[self.ids]["n_comps"] = self.fullburst_dict["num_comps"]
+
+                #write final RM and error if available
+                if "RM2zoom" in self.fullburst_dict.keys():
+                    data_dict[self.ids]["RM"] = self.fullburst_dict["RM2zoom"]
+                    data_dict[self.ids]["RM_error"] = self.fullburst_dict["RMerr2zoom"]
+
+                #write polarization fractions
+                if "T/I_post" in self.fullburst_dict.keys():
+                    #use post-RM polarization
+                    data_dict[self.ids]["RMcalibrated"] = True
+                    data_dict[self.ids]["Tpol"] = self.fullburst_dict["T/I_post"]
+                    data_dict[self.ids]["Lpol"] = self.fullburst_dict["L/I_post"]
+                    data_dict[self.ids]["Vpol"] = self.fullburst_dict["V/I"]
+                    data_dict[self.ids]["absVpol"] = self.fullburst_dict["absV/I"]
+                    data_dict[self.ids]["PA"] = self.fullburst_dict["PA_post"]
+
+                    data_dict[self.ids]["Tpol_error"] = self.fullburst_dict["T/I_post_err"]
+                    data_dict[self.ids]["Lpol_error"] = self.fullburst_dict["L/I_post_err"]
+                    data_dict[self.ids]["Vpol_error"] = self.fullburst_dict["V/I_err"]
+                    data_dict[self.ids]["absVpol_error"] = self.fullburst_dict["absV/I_err"]
+                    data_dict[self.ids]["PA_error"] = self.fullburst_dict["PAerr_post"]
+
+                else:
+                    #use pre-RM polarization
+                    data_dict[self.ids]["RMcalibrated"] = False
+                    data_dict[self.ids]["Tpol"] = self.fullburst_dict["T/I_pre"]
+                    data_dict[self.ids]["Lpol"] = self.fullburst_dict["L/I_pre"]
+                    data_dict[self.ids]["Vpol"] = self.fullburst_dict["V/I"]
+                    data_dict[self.ids]["absVpol"] = self.fullburst_dict["absV/I"]
+                    data_dict[self.ids]["PA"] = self.fullburst_dict["PA_pre"]
+
+                    data_dict[self.ids]["Tpol_error"] = self.fullburst_dict["T/I_pre_err"]
+                    data_dict[self.ids]["Lpol_error"] = self.fullburst_dict["L/I_pre_err"]
+                    data_dict[self.ids]["Vpol_error"] = self.fullburst_dict["V/I_err"]
+                    data_dict[self.ids]["absVpol_error"] = self.fullburst_dict["absV/I_err"]
+                    data_dict[self.ids]["PA_error"] = self.fullburst_dict["PAerr_pre"]
+
+                #write back to file
+                f = open(self.datadir + fname,"w")
+                json.dump(data_dict,f)
+                f.close()
+        
+
+                self.error = "Complete: "  + str(np.around(time.time()-t1,2)) + " s to export to json file " + str(fname)
+
+
+        except Exception as e:
+            self.error = "From savejson(): " + str(e)
+
 
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
@@ -1567,6 +1650,11 @@ class pol_panel(param.Parameterized):
             
             if self.error == "Exporting Summary to Text File...":
                 self.savetxt()
+
+            if self.error == "Writing Data to JSON File...":
+                self.savejson()
+
+
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)

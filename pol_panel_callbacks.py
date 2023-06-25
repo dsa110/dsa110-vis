@@ -114,6 +114,9 @@ def callback_savefilRM(target,event):
 def callback_savetxt(target,event):
     target.error = "Exporting Summary to Text File..."
     return
+def callback_savejson(target,event):
+    target.error = "Writing Data to JSON File..."
+    return
 
 #link IQUV from panel1 to panel 2
 def callback_link(target,event,pan1):
