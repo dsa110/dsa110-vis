@@ -433,12 +433,17 @@ class pol_panel(param.Parameterized):
                 #caldate="22-12-18"
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
-                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(self.datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                self.error2 = "getting 2D array"
+                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(self.datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
+                self.error2 = "done, copying 2D array"
                 self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
                 self.freq_test = copy.deepcopy(self.freq_test_init)
+                self.error2 = "done, getting time series"
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+                self.error2 = "done, getting PA"
                 #self.frb_loaded = True
-                PA_f,self.PA_t_init,PA_f_errs,self.PA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
+                self.PA_t_init,self.PA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle_vs_time((self.I_init,self.I_f),(self.Q_init,self.Q_f),(self.U_init,self.U_f),(self.V_init,self.V_f),self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
+                self.error2 = "done"
 
                 #time.sleep(5)
                 self.error =  "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
@@ -973,7 +978,8 @@ class pol_panel(param.Parameterized):
                 #get PA vs frequency
                 self.error = "Computing Position Angle..."
                 t1 = time.time()
-                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                #PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_f_masked),(self.U_t,U_f_masked),(self.V_t,V_f_masked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                 self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
                 self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
                 
@@ -988,7 +994,8 @@ class pol_panel(param.Parameterized):
                 #get polarization fractions and position angles
                 self.error = "Computing polarization..."
                 t1 = time.time()
-                [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                #[(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                [(pol_t,avg_frac,sigma_frac,snr_frac),(L_t,avg_L,sigma_L,snr_L),(C_t,avg_C_abs,sigma_C_abs,snr_C),(C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                 self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                 self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
                 self.comp_dict[self.curr_comp]["T/I_pre_snr"] = snr_frac
@@ -1138,12 +1145,17 @@ class pol_panel(param.Parameterized):
                     (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I,self.Q,self.U,self.V,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute spectrum"
 
+                    #unmask time series
+                    self.I_t = self.fullburst_dict["I_t"]
+                    self.Q_t = self.fullburst_dict["Q_t"]
+                    self.U_t = self.fullburst_dict["U_t"]
+                    self.V_t = self.fullburst_dict["V_t"]
 
                     #get total PA 
                     self.error = "Computing Position Angle..."
                     t1 = time.time()
-                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
-
+                    #self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,self.I_f_init),(self.Q_t,self.Q_f_init),(self.U_t,self.U_f_init),(self.V_t,self.V_f_init),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.avgPA = self.avgPA + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))
                     self.avgPAerr = self.avgPAerr + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"
@@ -1156,7 +1168,8 @@ class pol_panel(param.Parameterized):
                     multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
 
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    #[(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    [(pol_t,avg_frac,sigma_frac,snr_frac),(L_t,avg_L,sigma_L,snr_L),(C_t,avg_C_abs,sigma_C_abs,snr_C),(C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2))  
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2))
                     self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2))
@@ -1300,7 +1313,8 @@ class pol_panel(param.Parameterized):
                     #get PA vs frequency
                     self.error = "Computing Position Angle..."
                     t1 = time.time()
-                    PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    #PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_f_masked),(self.U_t,U_f_masked),(self.V_t,V_f_masked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
                     self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
 
@@ -1316,7 +1330,8 @@ class pol_panel(param.Parameterized):
                     #get polarization fractions
                     self.error = "Computing polarization..."
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    #[(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    [(pol_t,avg_frac,sigma_frac,snr_frac),(L_t,avg_L,sigma_L,snr_L),(C_t,avg_C_abs,sigma_C_abs,snr_C),(C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.comp_dict[self.curr_comp]["T/I_pre"] = avg_frac
                     self.comp_dict[self.curr_comp]["T/I_pre_err"] = sigma_frac
                     self.comp_dict[self.curr_comp]["T/I_pre_snr"] = snr_frac
@@ -1365,10 +1380,17 @@ class pol_panel(param.Parameterized):
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full spectrum"
 
 
+                    #unmask time series
+                    self.I_t = self.fullburst_dict["I_t"]
+                    self.Q_t = self.fullburst_dict["Q_t"]
+                    self.U_t = self.fullburst_dict["U_t"]
+                    self.V_t = self.fullburst_dict["V_t"]
+
                     #get PA vs frequency
                     self.error = "Computing Position Angle..."
                     t1 = time.time()
-                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    #self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,self.I_f_init),(self.Q_t,self.Q_f_init),(self.U_t,self.U_f_init),(self.V_t,self.V_f_init),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute position angle"
 
 
@@ -1379,7 +1401,7 @@ class pol_panel(param.Parameterized):
                     multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
 
                     t1 = time.time()
-                    [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    [(pol_t,avg_frac,sigma_frac,snr_frac),(L_t,avg_L,sigma_L,snr_L),(C_t,avg_C_abs,sigma_C_abs,snr_C),(C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.snr = self.snr + r'{a}'.format(a=np.around(snr,2)) 
                     self.Tsnr = self.Tsnr + r'{a}'.format(a=np.around(snr_frac,2)) 
                     self.Lsnr = self.Lsnr + r'{a}'.format(a=np.around(snr_L,2)) 

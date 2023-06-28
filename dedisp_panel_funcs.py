@@ -254,7 +254,7 @@ class dedisp_panel(param.Parameterized):
                 #caldate="22-12-18"
                 #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
                 #self.view()
-                (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True)
+                (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
                 self.I_init = copy.deepcopy(self.I)
                 self.I_init_dmzero = copy.deepcopy(self.I)
                 #(self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
