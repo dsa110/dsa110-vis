@@ -906,21 +906,102 @@ class pol_panel(param.Parameterized):
                 spectrumtable = polspectra.from_FITS(self.PolSpectra_name)
                 size = len(spectrumtable['source_number'])-1
 
-                #create new row
-                newrow = polspectra.from_arrays([self.RA],[self.DEC],[self.freq_test_init[0]],
-                                    [self.I_f_init],[np.nan*np.arange(len(self.I_f_init))],
-                                    [self.Q_f_init],[np.nan*np.arange(len(self.I_f_init))],
-                                    [self.U_f_init],[np.nan*np.arange(len(self.I_f_init))],
-                                    stokesV=[self.V_f_init],stokesV_error=[np.nan*np.arange(len(self.I_f_init))],
-                                    source_number_array=[int(size)],
-                                    beam_maj=0.0,beam_min=0.0,beam_pa=0,
-                                    coordinate_system='icrs',channel_width=np.abs(self.freq_test_init[0][1]-self.freq_test_init[0][0]))
-                newrow.add_column(values=[self.ids],name='candname',description='candidate name (str)')
-                newrow.add_column(values=[1],name='Npeaks',description='Number of burst components')
-                newrow.add_column(values=[1],name='PeakNum',description='Peak number within burst for which spectrum was computed')
+
+
+                ra_arr = []
+                dec_arr = []
+                I_f_arr = []
+                Q_f_arr = []
+                U_f_arr = []
+                V_f_arr = []
+
+                I_f_err_arr = [] #nan for now
+                Q_f_err_arr = []
+                U_f_err_arr = []
+                V_f_err_arr = []
+
+                source_number_array = []
+                peak_number_array = []
+                numpeaks_array = []
+
+                freq_array = []
+                fstep_array = []
+                bmaj_array = []
+                bmin_array = []
+                bpa_array = []
+                candname_array = []
+
+
+                #create row for full burst
+                ra_arr.append(self.RA)
+                dec_arr.append(self.DEC)
+                I_f_arr.append(self.fullburst_dict["I_f_init"])
+                Q_f_arr.append(self.fullburst_dict["Q_f_init"])
+                U_f_arr.append(self.fullburst_dict["U_f_init"])
+                V_f_arr.append(self.fullburst_dict["V_f_init"])
+
+                I_f_err_arr.append(np.nan*np.ones(len(self.I_f_init)))
+                Q_f_err_arr.append(np.nan*np.ones(len(self.Q_f_init)))
+                U_f_err_arr.append(np.nan*np.ones(len(self.U_f_init)))
+                V_f_err_arr.append(np.nan*np.ones(len(self.V_f_init)))
+
+                source_number_array.append(size)
+                peak_number_array.append(-1)
+                numpeaks_array.append(len(self.comp_dict.keys()))
+                freq_array.append(self.freq_test_init[0])
+                fstep_array.append(np.abs(self.freq_test_init[0][1]-self.freq_test_init[0][0]))
+
+                bmaj_array.append(0.0)
+                bmin_array.append(0.0)
+                bpa_array.append(0)
+                candname_array.append(self.ids)
+
+                #create row for each component if more than 1
+                if len(self.comp_dict.keys()) > 1:
+                    for i in range(len(self.comp_dict.keys())):
+
+                        ra_arr.append(self.RA)
+                        dec_arr.append(self.DEC)
+                        I_f_arr.append(self.comp_dict[i]["I_f_init"])
+                        Q_f_arr.append(self.comp_dict[i]["Q_f_init"])
+                        U_f_arr.append(self.comp_dict[i]["U_f_init"])
+                        V_f_arr.append(self.comp_dict[i]["V_f_init"])
+
+                        I_f_err_arr.append(np.nan*np.ones(len(self.I_f_init)))
+                        Q_f_err_arr.append(np.nan*np.ones(len(self.Q_f_init)))
+                        U_f_err_arr.append(np.nan*np.ones(len(self.U_f_init)))
+                        V_f_err_arr.append(np.nan*np.ones(len(self.V_f_init)))
+
+                        source_number_array.append(size+i+1)
+                        peak_number_array.append(i)
+                        numpeaks_array.append(len(self.comp_dict.keys()))
+                        freq_array.append(self.freq_test_init[0])
+                        fstep_array.append(np.abs(self.freq_test_init[0][1]-self.freq_test_init[0][0]))
+
+                        bmaj_array.append(0.0)
+                        bmin_array.append(0.0)
+                        bpa_array.append(0)
+
+                        candname_array.append(self.ids)
+
+                newrow = polspectra.from_arrays(ra_arr,dec_arr,freq_array,
+                                    I_f_arr,I_f_err_arr,
+                                    Q_f_arr,Q_f_err_arr,
+                                    U_f_arr,U_f_err_arr,
+                                    stokesV=V_f_arr,stokesV_error=V_f_err_arr,
+                                    source_number_array=source_number_array,
+                                    beam_maj=bmaj_array,beam_min=bmin_array,beam_pa=bpa_array,
+                                    coordinate_system='icrs',channel_width=fstep_array)
+                                    
+                                    
+                newrow.add_column(values=candname_array,name='candname',description='candidate name (str)')
+                newrow.add_column(values=numpeaks_array,name='Npeaks',description='Number of burst components')
+                newrow.add_column(values=peak_number_array,name='PeakNum',description='Peak number within burst for which spectrum was computed')
+                
+                #add to table and write
                 spectrumtable.merge_tables(newrow)
                 spectrumtable.write_FITS(self.PolSpectra_name,overwrite=True)
-                self.error = "Complete: " + str(time.time()-t1) + " s to update catalog"
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to update catalog"
 
         except Exception as e:
             self.error = "From addtocatalog(): "  + str(e)
