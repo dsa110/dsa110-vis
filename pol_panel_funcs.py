@@ -72,6 +72,10 @@ from astropy.coordinates import EarthLocation
 import astropy.units as u
 from syshealth.status_mon import get_rm
 
+#testing with RM table: https://github.com/CIRADA-Tools/RMTable
+from rmtable import RMTable
+#testing with pol Table: https://github.com/CIRADA-Tools/PolSpectra/tree/master
+import polspectra
 
 def gauss_scint(x,bw,amp,off):
     return off + amp*np.exp(-np.log(2)*((x/bw)**2))
@@ -442,7 +446,7 @@ class pol_panel(param.Parameterized):
                 (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
                 self.error2 = "done, getting PA"
                 #self.frb_loaded = True
-                self.PA_t_init,self.PA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle_vs_time((self.I_init,self.I_f),(self.Q_init,self.Q_f),(self.U_init,self.U_f),(self.V_init,self.V_f),self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
+                self.PA_t_init,self.PA_t_errs_init = dsapol.get_pol_angle_vs_time((self.I_t_init,self.I_f),(self.Q_t_init,self.Q_f),(self.U_t_init,self.U_f),(self.V_t_init,self.V_f),self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
                 self.error2 = "done"
 
                 #time.sleep(5)
@@ -882,6 +886,45 @@ class pol_panel(param.Parameterized):
             self.error = "From savejson(): " + str(e)
 
 
+    RMTable_name = '/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_RMTable_V1.fits'
+    PolSpectra_name = '/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_PolTable_V1.fits'
+
+    def addtocatalog(self):
+        try:
+            #only do if finished
+            if not self.finished:
+                self.error = "Please finish before adding to DSA-110 catalog"
+            
+            else:
+                self.error = "Adding FRB to DSA Catalogs..."
+                t1 = time.time()
+                #write RMTable if RM was detected
+
+                #write polarized spectra for each component
+                
+                #open current table
+                spectrumtable = polspectra.from_FITS(self.PolSpectra_name)
+                size = len(spectrumtable['source_number'])-1
+
+                #create new row
+                newrow = polspectra.from_arrays([self.RA],[self.DEC],[self.freq_test_init[0]],
+                                    [self.I_f_init],[np.nan*np.arange(len(self.I_f_init))],
+                                    [self.Q_f_init],[np.nan*np.arange(len(self.I_f_init))],
+                                    [self.U_f_init],[np.nan*np.arange(len(self.I_f_init))],
+                                    stokesV=[self.V_f_init],stokesV_error=[np.nan*np.arange(len(self.I_f_init))],
+                                    source_number_array=[int(size)],
+                                    beam_maj=0.0,beam_min=0.0,beam_pa=0,
+                                    coordinate_system='icrs',channel_width=np.abs(self.freq_test_init[0][1]-self.freq_test_init[0][0]))
+                newrow.add_column(values=[self.ids],name='candname',description='candidate name (str)')
+                newrow.add_column(values=[1],name='Npeaks',description='Number of burst components')
+                newrow.add_column(values=[1],name='PeakNum',description='Peak number within burst for which spectrum was computed')
+                spectrumtable.merge_tables(newrow)
+                spectrumtable.write_FITS(self.PolSpectra_name,overwrite=True)
+                self.error = "Complete: " + str(time.time()-t1) + " s to update catalog"
+
+        except Exception as e:
+            self.error = "From addtocatalog(): "  + str(e)
+
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
     timestart = int(peak - (5e-3)/(32.7e-6))
@@ -979,7 +1022,7 @@ class pol_panel(param.Parameterized):
                 self.error = "Computing Position Angle..."
                 t1 = time.time()
                 #PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
-                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_f_masked),(self.U_t,U_f_masked),(self.V_t,V_f_masked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_fmasked),(self.U_t,U_fmasked),(self.V_t,V_fmasked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                 self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
                 self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
                 
@@ -1314,7 +1357,7 @@ class pol_panel(param.Parameterized):
                     self.error = "Computing Position Angle..."
                     t1 = time.time()
                     #PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
-                    PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_f_masked),(self.U_t,U_f_masked),(self.V_t,V_f_masked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+                    PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle((self.I_t,I_fmasked),(self.Q_t,Q_fmasked),(self.U_t,U_fmasked),(self.V_t,V_fmasked),self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
                     self.comp_dict[self.curr_comp]["PA_f"] = PA_fmasked
                     self.comp_dict[self.curr_comp]["PA_f_errs"] = PA_f_errsmasked
 
@@ -1676,6 +1719,8 @@ class pol_panel(param.Parameterized):
             if self.error == "Writing Data to JSON File...":
                 self.savejson()
 
+            if self.error == "Adding to DSA110 RMTable and PolSpectra Catalogs...":
+                self.addtocatalog()
 
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted

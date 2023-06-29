@@ -117,6 +117,10 @@ def callback_savetxt(target,event):
 def callback_savejson(target,event):
     target.error = "Writing Data to JSON File..."
     return
+def callback_addtocatalog(target,event):
+    target.error = "Adding to DSA110 RMTable and PolSpectra Catalogs..."
+    return
+
 
 #link IQUV from panel1 to panel 2
 def callback_link(target,event,pan1):
@@ -433,6 +437,5 @@ def callback_RMcal(target,event,pan2):
 
     except Exception as e:
         target.error2 = "From callback_RMcal(): " + str(e)
-
 
 
