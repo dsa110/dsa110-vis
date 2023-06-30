@@ -908,6 +908,16 @@ class pol_panel(param.Parameterized):
 
 
 
+                #if already in table, remove and replace
+                if self.ids in spectrumtable["candname"]:
+                    tmp_spectrumtable = copy.deepcopy(spectrumtable[0:0])
+                    for i in range(len(spectrumtable["candname"])):
+                        if not (self.ids == spectrumtable["candname"][i]):
+                            tmp_spectrumtable.merge_tables(spectrumtable[i])
+                    spectrumtable = copy.deepcopy(tmp_spectrumtable)
+
+    
+
                 ra_arr = []
                 dec_arr = []
                 I_f_arr = []
