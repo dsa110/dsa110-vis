@@ -71,6 +71,7 @@ from astropy.time import Time
 from astropy.coordinates import EarthLocation
 import astropy.units as u
 from syshealth.status_mon import get_rm
+from astropy.coordinates import SkyCoord
 
 #testing with RM table: https://github.com/CIRADA-Tools/RMTable
 from rmtable import RMTable
@@ -898,13 +899,118 @@ class pol_panel(param.Parameterized):
             else:
                 self.error = "Adding FRB to DSA Catalogs..."
                 t1 = time.time()
-                #write RMTable if RM was detected
+                ##write RMTable if RM was detected and applied
+                rmtable = RMTable.read(self.RMTable_name)
+                
+                #if already in table, remove and replace
+                if self.ids in rmtable["candname"]:
+                    while self.ids in rmtable["candname"]:
+                        rmtable.remove_row(list(rmtable["candname"]).index(self.ids))
+                
+                #add row for full burst
+                rowidx = len(rmtable['candname'])
+                rmtable.add_row()
 
-                #write polarized spectra for each component
+                rmtable['ra'][rowidx] = self.RA
+                rmtable['dec'][rowidx] = self.DEC
+                c = SkyCoord(ra=self.RA*u.deg,dec=self.DEC*u.deg,frame='icrs')
+                rmtable['l'][rowidx] = c.galactic.l.degree
+                rmtable['b'][rowidx] = c.galactic.b.degree
+                rmtable['ionosphere'][rowidx] = "ionFR"
+                rmtable['Ncomp'][rowidx] = len(self.comp_dict.keys())
+                rmtable['Npeaks'][rowidx] = len(self.comp_dict.keys())
+                rmtable['PeakNum'][rowidx] = -1
+                rmtable['pol_bias'][rowidx] = "1985A&A...142..100S"
+                rmtable['Vfracpol'][rowidx] = self.fullburst_dict["V/I"]
+                rmtable['Vfracpol_err'][rowidx] = self.fullburst_dict["V/I_err"]
+                rmtable['absVfracpol'][rowidx] = self.fullburst_dict["absV/I"]
+                rmtable['absVfracpol_err'][rowidx] = self.fullburst_dict["absV/I_err"]
+                rmtable['polangle'][rowidx] = self.fullburst_dict["PA_pre"]*180/np.pi
+                rmtable['polangle_err'][rowidx] = self.fullburst_dict["PAerr_pre"]*180/np.pi
+                rmtable['minfreq'][rowidx] = np.min(self.freq_test_init[0])*1e6
+                rmtable['maxfreq'][rowidx] = np.max(self.freq_test_init[0])*1e6
+                rmtable['channelwidth'][rowidx] = np.abs(self.freq_test_init[0][0]-self.freq_test_init[0][1])*1e6
+                rmtable['rmsf_fwhm'][rowidx] = 349.81635341775683 #pre-calculated RMSF in jupyter notebook
+                rmtable['telescope'][rowidx] = 'DSA110'
+                rmtable['int_time'][rowidx] = 20480*32.7e-6
+                rmtable['epoch'][rowidx] = self.MJD
+                rmtable['candname'][rowidx] = self.ids
+                
+                if self.fullburst_dict['sigflag']:
+                    rmtable['rm'][rowidx] = self.fullburst_dict["RM2zoom"]
+                    rmtable['rm_err'][rowidx] = self.fullburst_dict["RMerr2zoom"]
+                    rmtable['rm_width'][rowidx] = self.fullburst_dict["RM_FWHM"]
+                    rmtable['rm_method'][rowidx] = "RM Synthesis"
+                    rmtable['fracpol'][rowidx] = self.fullburst_dict["T/I_post"]
+                    rmtable['fracpol_err'][rowidx] = self.fullburst_dict["T/I_post_err"]
+                    rmtable['Lfracpol'][rowidx] = self.fullburst_dict["L/I_post"]
+                    rmtable['Lfracpol_err'][rowidx] = self.fullburst_dict["L/I_post_err"]                   
+                    rmtable['derot_polangle'][rowidx] = self.fullburst_dict["PA_post"]*180/np.pi
+                    rmtable['derot_polangle_err'][rowidx] = self.fullburst_dict["PAerr_post"]*180/np.pi
+                else:
+                    rmtable['fracpol'][rowidx] = self.fullburst_dict["T/I_pre"]
+                    rmtable['fracpol_err'][rowidx] = self.fullburst_dict["T/I_pre_err"]
+                    rmtable['Lfracpol'][rowidx] = self.fullburst_dict["L/I_pre"]
+                    rmtable['Lfracpol_err'][rowidx] = self.fullburst_dict["L/I_pre_err"]
+
+                #add rows for each component
+                if len(self.comp_dict.keys()) > 1:
+                    for i in range(len(self.comp_dict.keys())):
+                        rowidx = len(rmtable['candname'])
+                        rmtable.add_row()
+
+                        rmtable['ra'][rowidx] = self.RA
+                        rmtable['dec'][rowidx] = self.DEC
+                        c = SkyCoord(ra=self.RA*u.deg,dec=self.DEC*u.deg,frame='icrs')
+                        rmtable['l'][rowidx] = c.galactic.l.degree
+                        rmtable['b'][rowidx] = c.galactic.b.degree
+                        rmtable['ionosphere'][rowidx] = "ionFR"
+                        rmtable['Ncomp'][rowidx] = len(self.comp_dict.keys())
+                        rmtable['Npeaks'][rowidx] = len(self.comp_dict.keys())
+                        rmtable['PeakNum'][rowidx] = i
+                        rmtable['pol_bias'][rowidx] = "1985A&A...142..100S"
+                        rmtable['Vfracpol'][rowidx] = self.comp_dict[i]["V/I"]
+                        rmtable['Vfracpol_err'][rowidx] = self.comp_dict[i]["V/I_err"]
+                        rmtable['absVfracpol'][rowidx] = self.comp_dict[i]["absV/I"]
+                        rmtable['absVfracpol_err'][rowidx] = self.comp_dict[i]["absV/I_err"]
+                        rmtable['polangle'][rowidx] = self.comp_dict[i]["PA_pre"]*180/np.pi
+                        rmtable['polangle_err'][rowidx] = self.comp_dict[i]["PAerr_pre"]*180/np.pi
+                        rmtable['minfreq'][rowidx] = np.min(self.freq_test_init[0])*1e6
+                        rmtable['maxfreq'][rowidx] = np.max(self.freq_test_init[0])*1e6
+                        rmtable['channelwidth'][rowidx] = np.abs(self.freq_test_init[0][0]-self.freq_test_init[0][1])*1e6
+                        rmtable['rmsf_fwhm'][rowidx] = 349.81635341775683 #pre-calculated RMSF in jupyter notebook
+                        rmtable['telescope'][rowidx] = 'DSA110'
+                        rmtable['int_time'][rowidx] = 20480*32.7e-6
+                        rmtable['epoch'][rowidx] = self.MJD
+                        rmtable['candname'][rowidx] = self.ids
+                
+                    if self.comp_dict[i]['sigflag']:
+                        rmtable['rm'][rowidx] = self.comp_dict[i]["RM2zoom"]
+                        rmtable['rm_err'][rowidx] = self.comp_dict[i]["RMerr2zoom"]
+                        rmtable['rm_width'][rowidx] = self.comp_dict[i]["RM_FWHM"]
+                        rmtable['rm_method'][rowidx] = "RM Synthesis"
+                        rmtable['fracpol'][rowidx] = self.comp_dict[i]["T/I_post"]
+                        rmtable['fracpol_err'][rowidx] = self.comp_dict[i]["T/I_post_err"]
+                        rmtable['Lfracpol'][rowidx] = self.comp_dict[i]["L/I_post"]
+                        rmtable['Lfracpol_err'][rowidx] = self.comp_dict[i]["L/I_post_err"]
+                        rmtable['derot_polangle'][rowidx] = self.comp_dict[i]["PA_post"]*180/np.pi
+                        rmtable['derot_polangle_err'][rowidx] = self.comp_dict[i]["PAerr_post"]*180/np.pi
+                    else:
+                        rmtable['fracpol'][rowidx] = self.comp_dict[i]["T/I_pre"]
+                        rmtable['fracpol_err'][rowidx] = self.comp_dict[i]["T/I_pre_err"]
+                        rmtable['Lfracpol'][rowidx] = self.comp_dict[i]["L/I_pre"]
+                        rmtable['Lfracpol_err'][rowidx] = self.comp_dict[i]["L/I_pre_err"]
+
+
+
+                #write back to file
+                rmtable.write(self.RMTable_name,overwrite=True)
+
+                ##write polarized spectra for each component
                 
                 #open current table
                 spectrumtable = polspectra.from_FITS(self.PolSpectra_name)
-                size = len(spectrumtable['source_number'])-1
+                size = np.max(spectrumtable['source_number'])#len(spectrumtable['source_number'])-1
 
 
 
@@ -2182,7 +2288,7 @@ class RM_panel(param.Parameterized):
     datadir = ""
     MJD = 0
 
-    
+    RM_FWHM = 0.0
 
 
     def clicked_run(self):
@@ -2237,7 +2343,7 @@ class RM_panel(param.Parameterized):
                     self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
                     self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
                     self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-
+                    self.fullburst_dict["RM_FWHM"] = self.RM_FWHM
 
                     self.fine_RM = False
                     self.done_RM = True
@@ -2465,7 +2571,7 @@ class RM_panel(param.Parameterized):
 
 
                 RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
-
+                self.RM_FWHM = 2*RMerr2
 
                 fit_window=50
                 oversamps = 5000
@@ -2488,11 +2594,13 @@ class RM_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["RMerr2zoom"] = self.RMerr2zoom
                     self.comp_dict[self.curr_comp]["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
                     self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+                    self.comp_dict[self.curr_comp]["RM_FWHM"] = 2*RMerr2
                 else:
                     self.fullburst_dict["RM2zoom"] = self.RM2zoom
                     self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
                     self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
                     self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
+                    self.fullburst_dict["RM_FWHM"] = 2*RMerr2
 
                 self.fine_RM = False
                 self.done_RM = True
