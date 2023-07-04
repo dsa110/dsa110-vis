@@ -30,7 +30,7 @@ from sigpyproc.Filterbank import FilterbankBlock
 from sigpyproc.Header import Header
 from matplotlib import pyplot as plt
 import pylab
-import pickle
+import pickle as pkl
 import json
 from scipy.interpolate import interp1d
 from scipy.stats import chi2
@@ -114,7 +114,7 @@ from matplotlib.widgets import SpanSelector
 from matplotlib.widgets import Button
 from matplotlib.widgets import TextBox
 
-
+from pol_panel_callbacks import tmp_file_dir
 
 
 def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,finished=False,maxcomps=4):
@@ -357,7 +357,7 @@ class pol_panel(param.Parameterized):
     freq_test_init = [np.zeros(6144)]*4
     gxx = np.zeros(6144)
     gyy = np.zeros(6144)
-    ibeam = 0
+    ibeam = param.Integer(default=0,bounds=(0,250),label='ibeam')
     RA = 0
     DEC = 0
     ParA = -1
@@ -425,80 +425,91 @@ class pol_panel(param.Parameterized):
     freq_test = copy.deepcopy(freq_test_init)
     #@param.depends('frb_mid', watch=True
 
+    load_RMcal = param.Boolean(False)
+    load_polcal =param.Boolean(False)
     def load_FRB(self):
         try:
-            if self.error=="Loading FRB...":
-                #self.error2 = str(self.I.shape)
-                self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
-                t1 = time.time()
-                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
-                self.datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ self.ids + "_" + self.nickname + "/"
-                #ibeam = 218
-                #caldate="22-12-18"
-                #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
-                #self.view()
-                self.error2 = "getting 2D array"
-                (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(self.datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
-                self.error2 = "done, copying 2D array"
-                self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
-                self.freq_test = copy.deepcopy(self.freq_test_init)
-                self.error2 = "done, getting time series"
-                (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
-                self.error2 = "done, getting PA"
-                #self.frb_loaded = True
-                self.PA_t_init,self.PA_t_errs_init = dsapol.get_pol_angle_vs_time((self.I_t_init,self.I_f),(self.Q_t_init,self.Q_f),(self.U_t_init,self.U_f),(self.V_t_init,self.V_f),self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
-                self.error2 = "done"
+            #if self.error=="Loading FRB...":
+            #self.error2 = str(self.I.shape)
+            self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
+            t1 = time.time()
+            self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+            self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+            self.datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ self.ids + "_" + self.nickname + "/"
+            #ibeam = 218
+            #caldate="22-12-18"
+            #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
+            #self.view()
+            self.error2 = "getting 2D array"
+            suff = ""
+            if (not self.load_polcal) and (not self.load_RMcal):
+                suff = "_dev"
+            else:
+                suff += "_" + self.nickname
 
-                #time.sleep(5)
-                self.error =  "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
-                #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
-                self.n_f_root = self.n_f
-                self.n_t_root = self.n_t
-                self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
-                self.n_f = 1
-                self.n_f_prev = 1
-                self.n_t = 1
+            if self.load_polcal:
+                suff += "_polcal"
+            if self.load_RMcal:
+                suff += "_RMcal"
+            (self.I,self.Q,self.U,self.V,self.fobj,self.timeaxis,self.freq_test_init,self.wav_test) = dsapol.get_stokes_2D(self.datadir,self.ids + suff,20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
+            self.error2 = "done, copying 2D array"
+            self.I_init,self.Q_init,self.U_init,self.V_init = copy.deepcopy(self.I),copy.deepcopy(self.Q),copy.deepcopy(self.U),copy.deepcopy(self.V)
+            self.freq_test = copy.deepcopy(self.freq_test_init)
+            self.error2 = "done, getting time series"
+            (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+            self.error2 = "done, getting PA"
+            #self.frb_loaded = True
+            self.PA_t_init,self.PA_t_errs_init = dsapol.get_pol_angle_vs_time((self.I_t_init,self.I_f),(self.Q_t_init,self.Q_f),(self.U_t_init,self.U_f),(self.V_t_init,self.V_f),self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,pre_calc_tf=True,show=False,normalize=True,buff=1,weighted=False,timeaxis=self.timeaxis,fobj=self.fobj)
+            self.error2 = "done"
 
-                self.I_RMcal =  np.zeros(self.I.shape)
-                self.Q_RMcal =  np.zeros(self.I.shape)
-                self.U_RMcal =  np.zeros(self.I.shape)
-                self.V_RMcal =  np.zeros(self.I.shape)
+            #time.sleep(5)
+            self.error =  "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
+            #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
+            self.n_f_root = self.n_f
+            self.n_t_root = self.n_t
+            self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
+            self.n_f = 1
+            self.n_f_prev = 1
+            self.n_t = 1
 
-                self.I_t = np.nan*np.ones(len(self.I_t_init))
-                self.Q_t = np.nan*np.ones(len(self.I_t_init))
-                self.U_t = np.nan*np.ones(len(self.I_t_init))
-                self.V_t = np.nan*np.ones(len(self.I_t_init))
+            self.I_RMcal =  np.zeros(self.I.shape)
+            self.Q_RMcal =  np.zeros(self.I.shape)
+            self.U_RMcal =  np.zeros(self.I.shape)
+            self.V_RMcal =  np.zeros(self.I.shape)
 
-                self.PA_t = np.nan*np.ones(len(self.PA_t_init))
-                self.PA_t_errs = np.nan*np.ones(len(self.PA_t_errs_init))
+            self.I_t = copy.deepcopy(self.I_t_init)#np.nan*np.ones(len(self.I_t_init))
+            self.Q_t = copy.deepcopy(self.Q_t_init)#np.nan*np.ones(len(self.I_t_init))
+            self.U_t = copy.deepcopy(self.U_t_init)#np.nan*np.ones(len(self.I_t_init))
+            self.V_t = copy.deepcopy(self.V_t_init)#np.nan*np.ones(len(self.I_t_init))
 
-                self.I_f_init = np.nan*np.ones(len(self.freq_test_init))#I.mean(1)#np.zeros(I.shape[0])
-                self.Q_f_init = np.nan*np.ones(len(self.freq_test_init))#Q.mean(1)#np.zeros(Q.shape[0])
-                self.U_f_init = np.nan*np.ones(len(self.freq_test_init))#U.mean(1)#np.zeros(U.shape[0])
-                self.V_f_init = np.nan*np.ones(len(self.freq_test_init))#V.mean(1)#np.zeros(V.shape[0])
+            self.PA_t = np.nan*np.ones(len(self.PA_t_init))
+            self.PA_t_errs = np.nan*np.ones(len(self.PA_t_errs_init))
 
-                self.I_f = np.nan*np.ones(len(self.I_f_init))
-                self.Q_f = np.nan*np.ones(len(self.I_f_init))
-                self.U_f = np.nan*np.ones(len(self.I_f_init))
-                self.V_f = np.nan*np.ones(len(self.I_f_init))
-                self.PA_f = np.nan*np.ones(len(self.I_f_init))
-                self.PA_f_errs = np.nan*np.ones(len(self.I_f_init))
-                self.freq_test = copy.deepcopy(self.freq_test_init)
+            self.I_f_init = np.nan*np.ones(len(self.freq_test_init))#I.mean(1)#np.zeros(I.shape[0])
+            self.Q_f_init = np.nan*np.ones(len(self.freq_test_init))#Q.mean(1)#np.zeros(Q.shape[0])
+            self.U_f_init = np.nan*np.ones(len(self.freq_test_init))#U.mean(1)#np.zeros(U.shape[0])
+            self.V_f_init = np.nan*np.ones(len(self.freq_test_init))#V.mean(1)#np.zeros(V.shape[0])
+
+            self.I_f = np.nan*np.ones(len(self.I_f_init))
+            self.Q_f = np.nan*np.ones(len(self.I_f_init))
+            self.U_f = np.nan*np.ones(len(self.I_f_init))
+            self.V_f = np.nan*np.ones(len(self.I_f_init))
+            self.PA_f = np.nan*np.ones(len(self.I_f_init))
+            self.PA_f_errs = np.nan*np.ones(len(self.I_f_init))
+            self.freq_test = copy.deepcopy(self.freq_test_init)
     
-    
-                self.PA_f_init = np.nan*np.ones(len(self.freq_test_init[0]))
-                self.PA_f_errs_init = np.nan*np.ones(len(self.freq_test_init[0]))
-               
-                self.fullburst_dict["I_t_init"] = self.I_t_init
-                self.fullburst_dict["Q_t_init"] = self.Q_t_init
-                self.fullburst_dict["U_t_init"] = self.U_t_init
-                self.fullburst_dict["V_t_init"] = self.V_t_init
-                self.fullburst_dict["PA_t_init"] = self.PA_t_init
-                self.fullburst_dict["PA_t_errs_init"] = self.PA_t_errs_init
+            self.PA_f_init = np.nan*np.ones(len(self.freq_test_init[0]))
+            self.PA_f_errs_init = np.nan*np.ones(len(self.freq_test_init[0]))
+           
+            self.fullburst_dict["I_t_init"] = self.I_t_init
+            self.fullburst_dict["Q_t_init"] = self.Q_t_init
+            self.fullburst_dict["U_t_init"] = self.U_t_init
+            self.fullburst_dict["V_t_init"] = self.V_t_init
+            self.fullburst_dict["PA_t_init"] = self.PA_t_init
+            self.fullburst_dict["PA_t_errs_init"] = self.PA_t_errs_init
 
 
-                self.loaded = True
+            self.loaded = True
         except Exception as e:
             self.error = "From load_FRB(): " + str(e)
         return
@@ -506,7 +517,7 @@ class pol_panel(param.Parameterized):
 
     def cal_FRB(self):
         try:
-            if self.error=="Calibrating FRB..." and self.loaded:
+            if self.loaded:
                 self.error = "Calibrating FRB...."
                 t1 = time.time()
                 with open("/media/ubuntu/ssd/sherman/code/" + self.cal_name,'r') as csvfile:
@@ -559,7 +570,7 @@ class pol_panel(param.Parameterized):
 
     def savefil(self):
         try:
-            if self.error=="Saving Calibrated Filterbanks..." and self.loaded and self.calibrated:
+            if self.loaded and self.calibrated:
                 self.error = "Saving Calibrated Filterbanks..."
                 t1 = time.time()
 
@@ -575,7 +586,7 @@ class pol_panel(param.Parameterized):
 
     def savefilRM(self):
         try:
-            if self.error=="Saving RM Calibrated Filterbanks..." and self.loaded and self.rmcalibrated_all:
+            if self.loaded and self.rmcalibrated_all:
                 self.error = "Saving RM Calibrated Filterbanks..."
                 t1 = time.time()
 
@@ -1344,7 +1355,7 @@ class pol_panel(param.Parameterized):
     def clicked_get(self):
         try:
             self.comp_choose_on = not self.comp_choose_on
-            self.height = np.around(np.max(self.I_t)/2,2)
+            self.height = np.around(np.nanmax(self.I_t)/2,2)
             self.param.trigger('get_comp')
         except Exception as e:
             self.error = "From clicked_get(): " + str(e)
@@ -1862,6 +1873,18 @@ class pol_panel(param.Parameterized):
     done = param.Action(clicked_done,label='Done')
     exportplot = param.Action(clicked_plot,label='Export Summary Plot')
 
+
+
+    #initialization and calibration buttons
+    load_button = param.Action(load_FRB,label="Load FRB")
+    cal_button = param.Action(cal_FRB,label="Calibrate")
+    savefil_button = param.Action(savefil,label="Save Calibrated Filterbanks")
+    savefilRM_button = param.Action(savefilRM,label="Save RM Calibrated Filterbanks")
+    savetxt_button = param.Action(savetxt,label="Export Text File Summary")
+    savejson_button = param.Action(savejson,label="Save Data to JSON")
+    addtocatalog_button = param.Action(addtocatalog,label="Add to DSA-110 Catalog")
+
+
     #polarization
     snr = param.String(default="",label="S/N")
     Tsnr = param.String(default="",label="T S/N")
@@ -1889,6 +1912,138 @@ class pol_panel(param.Parameterized):
 
 
 
+    #***SAVING RM INTERMEDIATE DATA TO PKL FILES***#
+    #link IQUV from panel1 to panel 2
+    def clicked_link(self):
+        try:
+            self.error = "Transferring data between panels..."
+            t1 = time.time()
+
+
+
+            #write current data to pkl files
+            dyn_spectra_dict = dict()
+            dyn_spectra_dict["I"] = self.I
+            dyn_spectra_dict["Q"] = self.Q
+            dyn_spectra_dict["U"] = self.U
+            f = open(tmp_file_dir + "dyn_spectra.pkl","wb")
+            pkl.dump(dyn_spectra_dict,f)
+            f.close()
+
+            parameters_dict = dict()
+            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on:
+                curr_comp = np.max(list(self.comp_dict.keys()))
+                self.error = "Multiple Components, using component " + str(curr_comp) + " " + str(len(self.comp_dict[curr_comp]["I_f_init"]))
+                spectra_dict = dict()
+                spectra_dict["I_f"] = self.comp_dict[curr_comp]["I_f_init"]
+                spectra_dict["Q_f"] = self.comp_dict[curr_comp]["Q_f_init"]
+                spectra_dict["U_f"] = self.comp_dict[curr_comp]["U_f_init"]
+                spectra_dict["freq_test"] = self.freq_test_init
+                self.error = "yososo"
+                f = open(tmp_file_dir + "1D_spectra.pkl","wb")
+                pkl.dump(spectra_dict,f)
+                f.close()
+                self.error = "but here tho"
+                parameters_dict["curr_comp"] = curr_comp
+                parameters_dict["ibox"] = self.ibox
+                parameters_dict["curr_weights"] = self.comp_dict[curr_comp]["weights"]
+                self.error = "done here"
+            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on):
+                curr_comp = -1
+                self.error = str(curr_comp) + "All Components " + str(len(self.I_f_init))
+                spectra_dict = dict()
+                spectra_dict["I_f"] = self.I_f_init#pan1.comp_dict[curr_comp]["I_f_init"]
+                spectra_dict["Q_f"] = self.Q_f_init#pan1.comp_dict[curr_comp]["Q_f_init"]
+                spectra_dict["U_f"] = self.U_f_init#pan1.comp_dict[curr_comp]["U_f_init"]
+                spectra_dict["freq_test"] = self.freq_test_init
+                f = open(tmp_file_dir + "1D_spectra.pkl","wb")
+                pkl.dump(spectra_dict,f)
+                f.close()
+
+                parameters_dict["curr_comp"] = curr_comp
+                parameters_dict["ibox"] = self.ibox
+                parameters_dict["curr_weights"] = self.curr_weights#comp_dict[curr_comp]["weights"]
+
+
+
+            parameters_dict["datadir"] = self.datadir
+            self.error = "1"
+            parameters_dict["ids"] = self.ids
+            self.error = "2"
+            parameters_dict["nickname"] = self.nickname
+            self.error = "3"
+            parameters_dict["n_t"] = self.n_t
+            self.error = "4"
+            parameters_dict["n_f"] = self.n_f
+            self.error = "5"
+            parameters_dict["tsamp"] = self.fobj.header.tsamp
+            self.error = "6"
+            parameters_dict["ibox"] = self.ibox
+            self.error = "7"
+
+            f = open(tmp_file_dir + "parameters.pkl","wb")
+            pkl.dump(parameters_dict,f)
+            f.close()
+
+            self.error = "wrote parameters"
+            f = open(tmp_file_dir + "comp_dict.pkl","wb")
+            self.error = "is here yes"
+            pkl.dump(self.comp_dict,f)
+            self.error = "or here yes"
+            f.close()
+
+            self.error = "wrote comp dict"
+            f = open(tmp_file_dir + "fullburst_dict.pkl","wb")
+            pkl.dump(self.fullburst_dict,f)
+            f.close()
+
+            ready_dict = dict()
+            ready_dict["ready"] = True
+            f = open(tmp_file_dir + "ready.pkl","wb")
+            pkl.dump(ready_dict,f)
+            f.close()
+
+            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to transfer data"
+            self.param.trigger('link_button')
+            return
+        except Exception as e:
+            self.error = "From clicked_link(): " + str(e)
+            return
+    
+    link_button = param.Action(clicked_link,label="Proceed to RM Synthesis")
+
+    #function for recovering rm data from pickle files
+    def clicked_pkl_load(self):
+        try:
+            self.error = "Retrieving rm data to pkl files..."
+            t1 = time.time()
+            #write galactic and ionospheric rm
+            f = open(tmp_file_dir + "rm_vals.pkl","rb")
+            rm_dict = pkl.load(f)
+            f.close()
+            self.RM_gal = rm_dict['RM_gal']
+            self.RM_galerr = rm_dict['RM_galerr']
+            self.RM_ion = rm_dict['RM_ion']
+            self.RM_ionerr = rm_dict['RM_ionerr']
+
+            #update comp dict
+            f = open(tmp_file_dir + "comp_dict.pkl","rb")
+            self.comp_dict = pkl.load(f)
+            f.close()
+
+            #update full burst dict
+            f = open(tmp_file_dir + "fullburst_dict.pkl","rb")
+            self.fullburst_dict = pkl.load(f)
+            f.close()
+
+            self.error = "Complete: " + str(np.around(time.time()-t1)) + " to get RM from pkl files"
+
+            self.param.trigger('RMdata_init')
+        except Exception as e:
+            self.error = "From clicked_pkl_load(): " + str(e)
+        return
+    RMdata_init = param.Action(clicked_pkl_load,label="Retrieve RM Data")
+
 
 
     #***VIEWING MODULE***#
@@ -1897,6 +2052,7 @@ class pol_panel(param.Parameterized):
     def view(self):
         try:
             #self.error2 = str(self.intLs) + " " + str(self.intRs)
+            """
             if self.error == "Loading FRB...":
                 #self.error = "Loading FRB..."
                 self.load_FRB()
@@ -1918,7 +2074,7 @@ class pol_panel(param.Parameterized):
 
             if self.error == "Adding to DSA110 RMTable and PolSpectra Catalogs...":
                 self.addtocatalog()
-
+            """
             #self.load_FRB()
             #self.frb_submitted = self.frb_submitted
             #self.error = str(self.frb_submitted)
@@ -2224,6 +2380,7 @@ class RM_panel(param.Parameterized):
     freq_test = [np.zeros(6144)]*4
     n_t = 1
     n_f = 1
+    tsamp = -1
     fobj = None
     curr_weights = np.nan*np.ones(20480)
     timestarts = []
@@ -2290,10 +2447,11 @@ class RM_panel(param.Parameterized):
 
     RM_FWHM = 0.0
 
-
+    loaded = False
     def clicked_run(self):
         try:
             #check if there's only one component
+            self.error = "AYOO " + str(self.comp_dict.keys()) + " " + str(self.curr_comp)
             if self.curr_comp == -1 and len(self.comp_dict.keys()) == 1:
                 self.error = "Only one component, copying results..."
                 t1 = time.time()
@@ -2570,7 +2728,7 @@ class RM_panel(param.Parameterized):
                 self.error = "Running fine S/N method..."
 
 
-                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.fobj.header.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
+                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
                 self.RM_FWHM = 2*RMerr2
 
                 fit_window=50
@@ -2605,8 +2763,8 @@ class RM_panel(param.Parameterized):
                 self.fine_RM = False
                 self.done_RM = True
     
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis"
-
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis " + str(self.init_RM) + " " + str(self.fine_RM) + " " + str(self.done_RM)
+                
         except Exception as e:
             #self.error = "From clicked_run(): " + str(e) + " " + str(len(self.curr_weights)) + " " + str(len(np.trim_zeros(self.curr_weights))) + " " + str(self.timestop_in-self.timestart_in)
             self.error = "From clicked_run(): " + str(e) + " " + str(len(self.I_f)) + " " + str(len(self.freq_test))
@@ -2775,11 +2933,123 @@ class RM_panel(param.Parameterized):
         return
 
     """
+    """
+    #check flage in ready.pkl
+    def check_ready_flag(self):
+        try:
+            f = open(tmp_file_dir + "ready.pkl","rb")
+            x = pkl.load(f)
+            f.close()
+            return x["ready"]
+        except Exception as e:
+            self.error = "From check_ready_flag(): " + str(e)
+            return
+    """
 
+    #setup data
+    def clicked_pkl_load(self):
+        try:
+            self.error = "Loading Data from pkl files..."
+            t1 = time.time()
+            #get dynamic spectra
+            f = open(tmp_file_dir + "dyn_spectra.pkl","rb")
+            dyn_spectra_dict = pkl.load(f)
+            f.close()
+            self.I = dyn_spectra_dict["I"]
+            self.Q = dyn_spectra_dict["Q"]
+            self.U = dyn_spectra_dict["U"]
+            #self.V = dyn_spectra_dict["V"]
+
+            #get 1D spectra
+            f = open(tmp_file_dir + "1D_spectra.pkl","rb")
+            spectra_dict = pkl.load(f)
+            f.close()
+            self.I_f = spectra_dict["I_f"]
+            self.Q_f = spectra_dict["Q_f"]
+            self.U_f = spectra_dict["U_f"]
+            #self.V_f = spectra_dict["V_f"]
+            self.freq_test = spectra_dict["freq_test"]
+
+
+            #get parameters
+            f = open(tmp_file_dir + "parameters.pkl","rb")
+            parameters_dict = pkl.load(f)
+            f.close()
+            self.curr_weights = parameters_dict["curr_weights"]            
+            self.n_t = parameters_dict["n_t"]
+            self.n_f = parameters_dict["n_f"]
+            self.curr_comp = parameters_dict["curr_comp"]
+            self.ibox = parameters_dict["ibox"]
+            self.tsamp = parameters_dict["tsamp"]
+            self.nickname = parameters_dict["nickname"]
+            self.ids = parameters_dict["ids"]
+            self.datadir = parameters_dict["datadir"]
+
+            #get comp_dict
+            f = open(tmp_file_dir + "comp_dict.pkl","rb")
+            self.comp_dict = pkl.load(f)
+            f.close()
+
+            #get fullburst dict
+            f = open(tmp_file_dir + "fullburst_dict.pkl","rb")
+            self.fullburst_dict = pkl.load(f)
+            f.close()
+
+            self.init_RM = True
+            self.fine_RM = False
+            self.done_RM = False
+            #self.loaded = True
+            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load pkl data"
+            self.param.trigger('RMdata_init')
+        except Exception as e:
+            self.error = "From clicked_pkl_load(): " + str(e)
+        return
+
+    RMdata_init = param.Action(clicked_pkl_load,label="Initialize Data")
+
+
+    #function for saving rm data back to pickle files
+    def clicked_pkl_save(self):
+        try:
+            self.error = "Saving rm data to pkl files..."
+            t1 = time.time()
+            #write galactic and ionospheric rm
+            rm_dict = dict()
+            rm_dict['RM_gal'] = self.RM_gal
+            rm_dict['RM_galerr'] = self.RM_galerr
+            rm_dict['RM_ion'] = self.RM_ion
+            rm_dict['RM_ionerr'] = self.RM_ionerr
+            f = open(tmp_file_dir + "rm_vals.pkl","wb")
+            pkl.dump(rm_dict,f)
+            f.close()
+
+            #update comp dict
+            f = open(tmp_file_dir + "comp_dict.pkl","wb")
+            pkl.dump(self.comp_dict,f)
+            f.close()
+
+            #update full burst dict
+            f = open(tmp_file_dir + "fullburst_dict.pkl","wb")
+            pkl.dump(self.fullburst_dict,f)
+            f.close()
+
+            self.error = "Complete: " + str(np.around(time.time()-t1)) + " to save to pkl files"
+
+            self.param.trigger('RMdata_out')
+        except Exception as e:
+            self.error = "From clicked_pkl_load(): " + str(e)
+        return
+    RMdata_out = param.Action(clicked_pkl_save,label="Return to Pol Analysis")
 
     #***VIEWING MODULE***#
     def view(self):
         try:
+            #use data from tmp files if ready flag is set
+            #if self.check_ready_flag() and (not self.loaded):
+            #    self.load_pkl_data()
+
+
+
             #update trial RM
             self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
             if self.RM1 != "":

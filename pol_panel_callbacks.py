@@ -30,7 +30,7 @@ from sigpyproc.Filterbank import FilterbankBlock
 from sigpyproc.Header import Header
 from matplotlib import pyplot as plt
 import pylab
-import pickle
+import pickle as pkl
 import json
 from scipy.interpolate import interp1d
 from scipy.stats import chi2
@@ -97,101 +97,30 @@ plt.rcParams.update({
 
 
 
-def callback(target, event):
-    target.error = "Loading FRB..."
-    #target.frb_submitted = True
-    return
-def callback_cal(target,event,pan2):
-    target.error = "Calibrating FRB..."
-    #pan2.error = "Calculated galactic RM"
-    return
-def callback_savefil(target,event):
-    target.error = "Saving Calibrated Filterbanks..."
-    return
-def callback_savefilRM(target,event):
-    target.error = "Saving RM Calibrated Filterbanks..."
-    return
-def callback_savetxt(target,event):
-    target.error = "Exporting Summary to Text File..."
-    return
-def callback_savejson(target,event):
-    target.error = "Writing Data to JSON File..."
-    return
-def callback_addtocatalog(target,event):
-    target.error = "Adding to DSA110 RMTable and PolSpectra Catalogs..."
-    return
+tmp_file_dir = "/media/ubuntu/ssd/sherman/code/RM_tmp_files/"
+tmp_files = ["1D_spectra.pkl","comp_dict.pkl","dyn_spectra.pkl","fullburst_dict.pkl","parameters.pkl","rm_vals.pkl"]
+#clear temp data
+def callback_clear(target,event):
+    
+    for fname in tmp_files:
+        f = open(tmp_file_dir + fname,"wb")
+        pkl.dump(dict(),f)
+        f.close()
 
+    #reset ready flag
+    #f = open(tmp_file_dir + "ready.pkl","wb")
+    #x = dict()
+    #x["ready"] = False
+    #pkl.dump(x,f)
+    #f.close()
 
-#link IQUV from panel1 to panel 2
-def callback_link(target,event,pan1):
-    target.error = "Transferring data between panels..."
-    t1 = time.time()
-
-
-    target.I = pan1.I
-    target.Q = pan1.Q
-    target.U = pan1.U
-    target.V = pan1.V
-
-    #get current component, or if all already done, get full thing
-    if (len(pan1.comp_dict.keys()) <= len(pan1.fixed_comps)) and (len(pan1.comp_dict.keys()) > 0) and pan1.filt_weights_on:
-        # get current component
-        target.curr_comp = np.max(list(pan1.comp_dict.keys()))
-        target.error = "Multiple Components, using component " + str(target.curr_comp) + " " + str(len(pan1.comp_dict[target.curr_comp]["I_f_init"]))
-
-
-        target.I_f = pan1.comp_dict[target.curr_comp]["I_f_init"]#pan1.I_f_init
-        target.Q_f = pan1.comp_dict[target.curr_comp]["Q_f_init"]#pan1.Q_f_init
-        target.U_f = pan1.comp_dict[target.curr_comp]["U_f_init"]#pan1.U_f_init
-        target.V_f = pan1.comp_dict[target.curr_comp]["V_f_init"]#pan1.V_f_init
-
-        target.curr_weights = pan1.comp_dict[target.curr_comp]["weights"]
-        target.ibox = pan1.comp_dict[target.curr_comp]["ibox"]
-    elif (len(pan1.comp_dict.keys()) == len(pan1.fixed_comps)) and (not pan1.filt_weights_on):
-        #get full component
-        target.curr_comp = -1
-        target.error = "All Components " + str(len(pan1.I_f_init))
-
-        target.I_f = pan1.I_f_init
-        target.Q_f = pan1.Q_f_init
-        target.U_f = pan1.U_f_init
-        target.V_f = pan1.V_f_init
-
-        target.curr_weights = pan1.curr_weights
-        target.ibox = pan1.ibox
-    target.freq_test = pan1.freq_test_init
-    target.n_t = pan1.n_t
-    target.n_f = pan1.n_f
-    #target.timestart = pan1.timestart
-    #/itarget.timestop = pan1.timestop
-    target.fobj = pan1.fobj
-    target.comp_dict = pan1.comp_dict
-    target.fullburst_dict = pan1.fullburst_dict
-
-    #reset flags
-    target.init_RM = True
-    target.fine_RM = False
-    target.done_RM = False
-
-    target.ids = pan1.ids
-    target.nickname = pan1.nickname
-    target.datadir = pan1.datadir
-
-    #target.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to transfer data"
-
-def callback_linkback(target,event,pan2):
-    target.RM_gal = pan2.RM_gal
-    target.RM_galerr = pan2.RM_galerr
-    target.RM_ion = pan2.RM_ion
-    target.RM_ionerr = pan2.RM_ionerr
-    target.comp_dict = pan2.comp_dict
-    target.fullburst_dict = pan2.fullburst_dict
 
 #RM calibration
 def callback_RMcal(target,event,pan2):
     #get most recently estimated RM
 
     try:
+        """
         if not pan2.fine_RM:
             rmcal = pan2.RM1
         else:
@@ -200,8 +129,30 @@ def callback_RMcal(target,event,pan2):
         pan2.error = str(pan2.curr_comp)
         #Case 1: calibrate full burst
         if pan2.curr_comp == -1:
+        
+        #check that ready flag is set
+        f = open(tmp_file_dir + "ready.pkl","rb")
+        ready_dict = pkl.load(f)
+        f.close()
+        if not ready_dict["ready"]:
+            return
+        """
+        #get current component
+        f = open(tmp_file_dir + "parameters.pkl","rb")
+        parameters_dict = pkl.load(f)
+        f.close()
+        if "curr_comp" not in parameters_dict.keys():
+            return
+        curr_comp = parameters_dict["curr_comp"]
+
+        if curr_comp == -1:
+            if "RM2zoom" in target.fullburst_dict.keys():
+                rmcal = target.fullburst_dict["RM2zoom"]
+            else:
+                rmcal = target.fullburst_dict["RM1"]
             target.error = "Derotating full burst to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
+
             target.sigflag = True
             target.fullburst_dict["sigflag"] = True
             target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test_init,stokes=True)
@@ -272,11 +223,15 @@ def callback_RMcal(target,event,pan2):
 
 
         #Case 2: calibrate current component
-        elif pan2.curr_comp != -1:
-            target.error = "Derotating component " + str(pan2.curr_comp) + " to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
+        elif curr_comp != -1:
+            if "RM2zoom" in target.comp_dict[curr_comp].keys():
+                rmcal = target.comp_dict[curr_comp]["RM2zoom"]
+            else:
+                rmcal = target.comp_dict[curr_comp]["RM1"]
+            target.error = "Derotating component " + str(curr_comp) + " to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
             t1 = time.time()
-            target.comp_dict[pan2.curr_comp]["sigflag"] = True
-            pan2.comp_dict[pan2.curr_comp]["sigflag"] = True
+            target.comp_dict[curr_comp]["sigflag"] = True
+            #pan2.comp_dict[curr_comp]["sigflag"] = True
             target.I_RMcal_init,target.Q_RMcal_init,target.U_RMcal_init,target.V_RMcal_init = dsapol.calibrate_RM(target.I_init,target.Q_init,target.U_init,target.V_init,rmcal,0,target.freq_test_init,stokes=True)
             target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal = dsapol.calibrate_RM(target.I,target.Q,target.U,target.V,rmcal,0,target.freq_test,stokes=True)
 
@@ -285,8 +240,8 @@ def callback_RMcal(target,event,pan2):
             #get_stokes_vs_freq(I,Q,U,V,width_native,t_samp,n_f,n_t,freq_test,n_off=3000,plot=False,datadir=DEFAULT_DATADIR,label='',calstr='',ext=ext,show=False,normalize=False,buff=0,weighted=False,n_t_weight=1,timeaxis=None,fobj=None,sf_window_weights=45,input_weights=[]
 
             #(target.I_f_init,target.Q_f_init,target.U_f_init,target.V_f_init) = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.curr_weights)
-            target.comp_dict[pan2.curr_comp]["I_f_init"], target.comp_dict[pan2.curr_comp]["Q_f_init"], target.comp_dict[pan2.curr_comp]["U_f_init"], target.comp_dict[pan2.curr_comp]["V_f_init"] = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
-            target.comp_dict[pan2.curr_comp]["I_f"], target.comp_dict[pan2.curr_comp]["Q_f"], target.comp_dict[pan2.curr_comp]["U_f"], target.comp_dict[pan2.curr_comp]["V_f"] = target.comp_dict[pan2.curr_comp]["I_f_init"], target.comp_dict[pan2.curr_comp]["Q_f_init"], target.comp_dict[pan2.curr_comp]["U_f_init"], target.comp_dict[pan2.curr_comp]["V_f_init"]
+            target.comp_dict[curr_comp]["I_f_init"], target.comp_dict[curr_comp]["Q_f_init"], target.comp_dict[curr_comp]["U_f_init"], target.comp_dict[curr_comp]["V_f_init"] = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,1,target.n_t,target.freq_test_init,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.comp_dict[curr_comp]["weights"])
+            target.comp_dict[curr_comp]["I_f"], target.comp_dict[curr_comp]["Q_f"], target.comp_dict[curr_comp]["U_f"], target.comp_dict[curr_comp]["V_f"] = target.comp_dict[curr_comp]["I_f_init"], target.comp_dict[curr_comp]["Q_f_init"], target.comp_dict[curr_comp]["U_f_init"], target.comp_dict[curr_comp]["V_f_init"]
             #target.comp_dict[pan2.curr_comp]["I_f"], target.comp_dict[pan2.curr_comp]["Q_f"], target.comp_dict[pan2.curr_comp]["U_f"], target.comp_dict[pan2.curr_comp]["V_f"] = dsapol.get_stokes_vs_freq(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,1,target.fobj.header.tsamp,target.n_f,target.n_t,target.freq_test,n_off=int(12000/target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
             #(target.I_t_init,target.Q_t_init,target.U_t_init,target.V_t_init) = dsapol.get_stokes_vs_time(I_RMcal_init,Q_RMcal_init,U_RMcal_init,V_RMcal_init,1,target.fobj.header.tsamp,1,n_off=int(12000/1),plot=False,show=False,normalize=True)
 
@@ -295,38 +250,38 @@ def callback_RMcal(target,event,pan2):
             #recompute polarization and PA
             target.error = "Re-computing polarization and PA..."
             t1 = time.time()
-            if target.comp_dict[pan2.curr_comp]["multipeaks"]:
-                h = target.comp_dict[pan2.curr_comp]["scaled_height"]
+            if target.comp_dict[curr_comp]["multipeaks"]:
+                h = target.comp_dict[curr_comp]["scaled_height"]
             else:
                 h =-1
-            [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.ibox,target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000/target.n_t),normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.comp_dict[pan2.curr_comp]["multipeaks"],height=h,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
+            [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.ibox,target.fobj.header.tsamp,target.n_t,1,target.freq_test_init,n_off=int(12000/target.n_t),normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.comp_dict[curr_comp]["multipeaks"],height=h,input_weights=target.comp_dict[curr_comp]["weights"])
 
 
-            PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.comp_dict[pan2.curr_comp]["ibox"],target.fobj.header.tsamp,target.n_t,target.n_f,target.freq_test,n_off=int(12000//target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.multipeaks,height=h,input_weights=target.comp_dict[pan2.curr_comp]["weights"])
-            target.comp_dict[pan2.curr_comp]["PA_f_init"] = PA_fmasked
-            target.comp_dict[pan2.curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
+            PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(target.I_RMcal,target.Q_RMcal,target.U_RMcal,target.V_RMcal,target.comp_dict[curr_comp]["ibox"],target.fobj.header.tsamp,target.n_t,target.n_f,target.freq_test,n_off=int(12000//target.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=target.timeaxis,fobj=target.fobj,multipeaks=target.multipeaks,height=h,input_weights=target.comp_dict[curr_comp]["weights"])
+            target.comp_dict[curr_comp]["PA_f_init"] = PA_fmasked
+            target.comp_dict[curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
 
-            target.comp_dict[pan2.curr_comp]["PA_f"] = PA_fmasked
-            target.comp_dict[pan2.curr_comp]["PA_f_errs"] = PA_f_errsmasked
+            target.comp_dict[curr_comp]["PA_f"] = PA_fmasked
+            target.comp_dict[curr_comp]["PA_f_errs"] = PA_f_errsmasked
 
-            target.comp_dict[pan2.curr_comp]["PA_post"] = avg_PA
-            target.comp_dict[pan2.curr_comp]["PAerr_post"] = sigma_PA
+            target.comp_dict[curr_comp]["PA_post"] = avg_PA
+            target.comp_dict[curr_comp]["PAerr_post"] = sigma_PA
 
-            target.comp_dict[pan2.curr_comp]["T/I_post"] = avg_frac
-            target.comp_dict[pan2.curr_comp]["T/I_post_err"] = sigma_frac
-            target.comp_dict[pan2.curr_comp]["T/I_post_snr"] = snr_frac
-            target.comp_dict[pan2.curr_comp]["L/I_post"] = avg_L
-            target.comp_dict[pan2.curr_comp]["L/I_post_err"] = sigma_L
-            target.comp_dict[pan2.curr_comp]["L/I_post_snr"] = snr_L
-            target.comp_dict[pan2.curr_comp]["absV/I"] = avg_C_abs
-            target.comp_dict[pan2.curr_comp]["absV/I_err"] = sigma_C_abs
-            target.comp_dict[pan2.curr_comp]["V/I"] = avg_C
-            target.comp_dict[pan2.curr_comp]["V/I_err"] = sigma_C
-            target.comp_dict[pan2.curr_comp]["V/I_snr"] = snr_C
-            target.comp_dict[pan2.curr_comp]["I_snr"] = snr
+            target.comp_dict[curr_comp]["T/I_post"] = avg_frac
+            target.comp_dict[curr_comp]["T/I_post_err"] = sigma_frac
+            target.comp_dict[curr_comp]["T/I_post_snr"] = snr_frac
+            target.comp_dict[curr_comp]["L/I_post"] = avg_L
+            target.comp_dict[curr_comp]["L/I_post_err"] = sigma_L
+            target.comp_dict[curr_comp]["L/I_post_snr"] = snr_L
+            target.comp_dict[curr_comp]["absV/I"] = avg_C_abs
+            target.comp_dict[curr_comp]["absV/I_err"] = sigma_C_abs
+            target.comp_dict[curr_comp]["V/I"] = avg_C
+            target.comp_dict[curr_comp]["V/I_err"] = sigma_C
+            target.comp_dict[curr_comp]["V/I_snr"] = snr_C
+            target.comp_dict[curr_comp]["I_snr"] = snr
 
             #update displays
-            if pan2.curr_comp == 0 and len(target.fixed_comps) == 1:
+            if curr_comp == 0 and len(target.fixed_comps) == 1:
                 target.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ') '
                 target.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ') '
                 target.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ') '
@@ -345,7 +300,7 @@ def callback_RMcal(target,event,pan2):
                 target.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
                 target.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
 
-            elif pan2.curr_comp == 0 and len(target.fixed_comps) > 1:
+            elif curr_comp == 0 and len(target.fixed_comps) > 1:
                 target.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ' ; '
                 target.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
                 target.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ' ; '
@@ -364,7 +319,7 @@ def callback_RMcal(target,event,pan2):
                 target.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ; '
                 target.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
 
-            elif pan2.curr_comp <  len(target.fixed_comps) -1 :
+            elif curr_comp <  len(target.fixed_comps) -1 :
 
                 lastsplit = ((len(target.snr[:-1])-1)-(target.snr[:-1][:-1])[::-1].index(";"))
                 target.snr = target.snr[:lastsplit+1] + r'{a}'.format(a=np.around(snr,2))+ ' ; '
@@ -399,7 +354,7 @@ def callback_RMcal(target,event,pan2):
                 target.avgPAerr = target.avgPAerr[:lastsplit+1] + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
 
 
-            elif pan2.curr_comp == len(target.fixed_comps) - 1:
+            elif curr_comp == len(target.fixed_comps) - 1:
 
                 lastsplit = ((len(target.snr[:-1])-1)-(target.snr[:-1][:-1])[::-1].index(";"))
                 target.snr = target.snr[:lastsplit+1] + r'{a}'.format(a=np.around(snr,2))+ ' ) '
