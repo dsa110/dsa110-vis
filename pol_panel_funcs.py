@@ -114,8 +114,8 @@ from matplotlib.widgets import SpanSelector
 from matplotlib.widgets import Button
 from matplotlib.widgets import TextBox
 
-from pol_panel_callbacks import tmp_file_dir
-
+tmp_file_dir = "/media/ubuntu/ssd/sherman/code/RM_tmp_files/"
+tmp_files = ["1D_spectra.pkl","comp_dict.pkl","dyn_spectra.pkl","fullburst_dict.pkl","parameters.pkl","rm_vals.pkl"]
 
 def pol_plot(I_t,Q_t,U_t,V_t,PA_t,PA_t_errs,I_f,Q_f,U_f,V_f,PA_f,PA_f_errs,comp_dict,freq_test,I_t_weights,timestart,timestop,n_t=1,n_f=1,buff_L=1,buff_R=1,n_t_weight=1,sf_window_weights=1,width_native=1,lo=1,comp_width=100,comp_choose_on=False,fixed_comps=[],filt_weights_on=False,comp_num=0,freq_samp_on=False,wait=False,multipeaks=False,height=5,intLs=[],intRs=[],maskPA=False,finished=False,maxcomps=4):
     
@@ -1980,6 +1980,16 @@ class pol_panel(param.Parameterized):
             self.error = "6"
             parameters_dict["ibox"] = self.ibox
             self.error = "7"
+            parameters_dict["RA"] = self.RA
+            self.error = "8"
+            parameters_dict["DEC"] = self.DEC
+            self.error = "9"
+            parameters_dict["MJD"] = self.MJD
+            self.error = "10"
+            parameters_dict["frb_name"] = self.frb_name
+            
+
+
 
             f = open(tmp_file_dir + "parameters.pkl","wb")
             pkl.dump(parameters_dict,f)
@@ -2036,7 +2046,7 @@ class pol_panel(param.Parameterized):
             self.fullburst_dict = pkl.load(f)
             f.close()
 
-            self.error = "Complete: " + str(np.around(time.time()-t1)) + " to get RM from pkl files"
+            self.error = "Complete: " + str(np.around(time.time()-t1)) + " s to get RM from pkl files"
 
             self.param.trigger('RMdata_init')
         except Exception as e:
@@ -2045,6 +2055,280 @@ class pol_panel(param.Parameterized):
     RMdata_init = param.Action(clicked_pkl_load,label="Retrieve RM Data")
 
 
+
+    #RM calibrate using data retrieved from pickle files
+    def clicked_RMcal(self):
+    #get most recently estimated RM
+
+        try:
+            #get current component
+            f = open(tmp_file_dir + "parameters.pkl","rb")
+            parameters_dict = pkl.load(f)
+            f.close()
+            if "curr_comp" not in parameters_dict.keys():
+                return
+            curr_comp = parameters_dict["curr_comp"]
+
+            if curr_comp == -1:
+                if "RM2zoom" in self.fullburst_dict.keys():
+                    rmcal = self.fullburst_dict["RM2zoom"]
+                else:   
+                    rmcal = self.fullburst_dict["RM1"]
+                self.error = "Derotating full burst to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
+                t1 = time.time()
+
+                self.sigflag = True
+                self.fullburst_dict["sigflag"] = True
+                self.I_RMcal_init,self.Q_RMcal_init,self.U_RMcal_init,self.V_RMcal_init = dsapol.calibrate_RM(self.I_init,self.Q_init,self.U_init,self.V_init,rmcal,0,self.freq_test_init,stokes=True)
+                self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal = dsapol.calibrate_RM(self.I,self.Q,self.U,self.V,rmcal,0,self.freq_test,stokes=True)
+
+                self.error = "step 1"
+                (self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init) = dsapol.get_stokes_vs_freq(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.curr_weights)
+                self.error = "step 2"
+                self.I_f, self.Q_f, self.U_f, self.V_f = self.I_f_init,self.Q_f_init,self.U_f_init,self.V_f_init
+                (self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I_RMcal_init,self.Q_RMcal_init,self.U_RMcal_init,self.V_RMcal_init,1,self.fobj.header.tsamp,1,n_off=int(12000/1),plot=False,show=False,normalize=True)
+
+
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " to derotate"
+
+                #recompute polarization and PA
+                self.error = "Re-computing polarization and PA..."
+                t1 = time.time()
+                multipeaks_all = (len(self.fixed_comps) > 1) or (self.comp_dict[0]["multipeaks"])
+                [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=multipeaks_all,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+
+                self.PA_f_init,tmpPA_t_init,self.PA_f_errs_init,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=self.height*np.max(self.curr_weights)/np.max(self.I_t),input_weights=self.curr_weights)
+
+                self.fullburst_dict["PA_f_init"] = self.PA_f_init#PA_fmasked
+                self.fullburst_dict["PA_f_errs_init"] = self.PA_f_errs_init#PA_f_errsmasked
+
+                self.fullburst_dict["PA_f"] = self.PA_f_init#PA_fmasked
+                self.fullburst_dict["PA_f_errs"] = self.PA_f_errs_init#PA_f_errsmasked
+
+                self.fullburst_dict["PA_post"] = avg_PA
+                self.fullburst_dict["PAerr_post"] = sigma_PA
+
+                self.fullburst_dict["T/I_post"] = avg_frac
+                self.fullburst_dict["T/I_post_err"] = sigma_frac
+                self.fullburst_dict["T/I_post_snr"] = snr_frac
+                self.fullburst_dict["L/I_post"] = avg_L
+                self.fullburst_dict["L/I_post_err"] = sigma_L
+                self.fullburst_dict["L/I_post_snr"] = snr_L
+                self.fullburst_dict["absV/I"] = avg_C_abs
+                self.fullburst_dict["absV/I_err"] = sigma_C_abs
+                self.fullburst_dict["V/I"] = avg_C
+                self.fullburst_dict["V/I_err"] = sigma_C
+                self.fullburst_dict["V/I_snr"] = snr_C
+                self.fullburst_dict["I_snr"] = snr
+
+
+
+
+                self.snr = self.snr[:self.snr.index(")") + 2] + r'{a}'.format(a=np.around(snr,2))
+                self.Tsnr = self.Tsnr[:self.Tsnr.index(")") + 2] + r'{a}'.format(a=np.around(snr_frac,2))
+                self.Lsnr = self.Lsnr[:self.Lsnr.index(")") + 2] + r'{a}'.format(a=np.around(snr_L,2))
+                self.Csnr = self.Csnr[:self.Csnr.index(")") + 2] + r'{a}'.format(a=np.around(snr_C,2))
+
+                self.Tpol = self.Tpol[:self.Tpol.index(")") + 2] + r'{a}%'.format(a=np.around(100*avg_frac,2))
+                self.Lpol = self.Lpol[:self.Lpol.index(")") + 2] + r'{a}%'.format(a=np.around(100*avg_L,2))
+                self.absCpol = self.absCpol[:self.absCpol.index(")") + 2] + r'{a}%'.format(a=np.around(100*avg_C_abs,2))
+                self.Cpol = self.Cpol[:self.Cpol.index(")") + 2] + r'{a}%'.format(a=np.around(100*avg_C,2))
+
+                self.Tpolerr = self.Tpolerr[:self.Tpolerr.index(")") + 2] + r'{a}%'.format(a=np.around(100*sigma_frac,2))
+                self.Lpolerr = self.Lpolerr[:self.Lpolerr.index(")") + 2] + r'{a}%'.format(a=np.around(100*sigma_L,2))
+                self.absCpolerr = self.absCpolerr[:self.absCpolerr.index(")") + 2] + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))
+                self.Cpolerr = self.Cpolerr[:self.Cpolerr.index(")") + 2] + r'{a}%'.format(a=np.around(100*sigma_C,2))
+
+                self.avgPA = self.avgPA[:self.avgPA.index(")") + 2] + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))
+                self.avgPAerr = self.avgPAerr[:self.avgPAerr.index(")") + 2] + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))
+
+                self.rmcalibrated_all = True
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute polarization"
+
+
+            #Case 2: calibrate current component
+            elif curr_comp != -1:
+                if "RM2zoom" in self.comp_dict[curr_comp].keys():
+                    rmcal = self.comp_dict[curr_comp]["RM2zoom"]
+                else:
+                    rmcal = self.comp_dict[curr_comp]["RM1"]
+                self.error = "Derotating component " + str(curr_comp) + " to RM = " + str(np.around(rmcal,2)) + " rad/m^2..."
+                t1 = time.time()
+                self.comp_dict[curr_comp]["sigflag"] = True
+                #pan2.comp_dict[curr_comp]["sigflag"] = True
+                self.I_RMcal_init,self.Q_RMcal_init,self.U_RMcal_init,self.V_RMcal_init = dsapol.calibrate_RM(self.I_init,self.Q_init,self.U_init,self.V_init,rmcal,0,self.freq_test_init,stokes=True)
+                self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal = dsapol.calibrate_RM(self.I,self.Q,self.U,self.V,rmcal,0,self.freq_test,stokes=True)
+
+
+
+                self.comp_dict[curr_comp]["I_f_init"], self.comp_dict[curr_comp]["Q_f_init"], self.comp_dict[curr_comp]["U_f_init"], self.comp_dict[curr_comp]["V_f_init"] = dsapol.get_stokes_vs_freq(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,1,self.fobj.header.tsamp,1,self.n_t,self.freq_test_init,n_off=int(12000/self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,input_weights=self.comp_dict[curr_comp]["weights"])
+                self.comp_dict[curr_comp]["I_f"], self.comp_dict[curr_comp]["Q_f"], self.comp_dict[curr_comp]["U_f"], self.comp_dict[curr_comp]["V_f"] = self.comp_dict[curr_comp]["I_f_init"], self.comp_dict[curr_comp]["Q_f_init"], self.comp_dict[curr_comp]["U_f_init"], self.comp_dict[curr_comp]["V_f_init"]
+
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " to derotate"
+
+                #recompute polarization and PA
+                self.error = "Re-computing polarization and PA..."
+                t1 = time.time()
+                if self.comp_dict[curr_comp]["multipeaks"]:
+                    h = self.comp_dict[curr_comp]["scaled_height"]
+                else:
+                    h =-1
+                [(pol_f,pol_t,avg_frac,sigma_frac,snr_frac),(L_f,L_t,avg_L,sigma_L,snr_L),(C_f,C_t,avg_C_abs,sigma_C_abs,snr_C),(C_f,C_t,avg_C,sigma_C,snr_C),snr] = dsapol.get_pol_fraction(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,self.ibox,self.fobj.header.tsamp,self.n_t,1,self.freq_test_init,n_off=int(12000/self.n_t),normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.comp_dict[curr_comp]["multipeaks"],height=h,input_weights=self.comp_dict[curr_comp]["weights"])
+
+
+                PA_fmasked,tmpPA_t_init,PA_f_errsmasked,tmpPA_t_errs_init,avg_PA,sigma_PA = dsapol.get_pol_angle(self.I_RMcal,self.Q_RMcal,self.U_RMcal,self.V_RMcal,self.comp_dict[curr_comp]["ibox"],self.fobj.header.tsamp,self.n_t,self.n_f,self.freq_test,n_off=int(12000//self.n_t),plot=False,show=False,normalize=True,weighted=True,timeaxis=self.timeaxis,fobj=self.fobj,multipeaks=self.multipeaks,height=h,input_weights=self.comp_dict[curr_comp]["weights"])
+                self.comp_dict[curr_comp]["PA_f_init"] = PA_fmasked
+                self.comp_dict[curr_comp]["PA_f_errs_init"] = PA_f_errsmasked
+
+                self.comp_dict[curr_comp]["PA_f"] = PA_fmasked
+                self.comp_dict[curr_comp]["PA_f_errs"] = PA_f_errsmasked
+
+                self.comp_dict[curr_comp]["PA_post"] = avg_PA
+                self.comp_dict[curr_comp]["PAerr_post"] = sigma_PA
+
+                self.comp_dict[curr_comp]["T/I_post"] = avg_frac
+                self.comp_dict[curr_comp]["T/I_post_err"] = sigma_frac
+                self.comp_dict[curr_comp]["T/I_post_snr"] = snr_frac
+                self.comp_dict[curr_comp]["L/I_post"] = avg_L
+                self.comp_dict[curr_comp]["L/I_post_err"] = sigma_L
+                self.comp_dict[curr_comp]["L/I_post_snr"] = snr_L
+                self.comp_dict[curr_comp]["absV/I"] = avg_C_abs
+                self.comp_dict[curr_comp]["absV/I_err"] = sigma_C_abs
+                self.comp_dict[curr_comp]["V/I"] = avg_C
+                self.comp_dict[curr_comp]["V/I_err"] = sigma_C
+                self.comp_dict[curr_comp]["V/I_snr"] = snr_C
+                self.comp_dict[curr_comp]["I_snr"] = snr
+
+                #update displays
+                if curr_comp == 0 and len(self.fixed_comps) == 1:
+                    self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ') '
+                    self.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ') '
+                    self.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ') '
+                    self.Csnr = '(' + r'{a}'.format(a=np.around(snr_C,2))+ ') '
+
+                    self.Tpol = '(' + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ') '
+                    self.Lpol = '(' + r'{a}%'.format(a=np.around(100*avg_L,2))+ ') '
+                    self.absCpol = '(' + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ') '
+                    self.Cpol = '('+ r'{a}%'.format(a=np.around(100*avg_C,2))+ ') '
+
+                    self.Tpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ') '
+                    self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ') '
+                    self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ') '
+                    self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ') '
+
+                    self.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ') '
+                    self.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ') '
+
+                elif curr_comp == 0 and len(self.fixed_comps) > 1:
+                    self.snr = '(' + r'{a}'.format(a=np.around(snr,2))+ ' ; '
+                    self.Tsnr = '('+ r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
+                    self.Lsnr = '(' + r'{a}'.format(a=np.around(snr_L,2))+ ' ; '
+                    self.Csnr = '(' + r'{a}'.format(a=np.around(snr_C,2))+ ' ; '
+
+                    self.Tpol = '(' + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ' ; '
+                    self.Lpol = '(' + r'{a}%'.format(a=np.around(100*avg_L,2))+ ' ; '
+                    self.absCpol = '(' + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ' ; '
+                    self.Cpol = '('+ r'{a}%'.format(a=np.around(100*avg_C,2))+ ' ; '
+
+                    self.Tpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ' ; '
+                    self.Lpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
+                    self.absCpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
+                    self.Cpolerr = '(' + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+
+                    self.avgPA = '(' + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ; '
+                    self.avgPAerr = '(' + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
+
+                elif curr_comp <  len(self.fixed_comps) -1 :
+
+                    lastsplit = ((len(self.snr[:-1])-1)-(self.snr[:-1][:-1])[::-1].index(";"))
+                    self.snr = self.snr[:lastsplit+1] + r'{a}'.format(a=np.around(snr,2))+ ' ; '
+                    lastsplit = ((len(self.Tsnr[:-1])-1)-(self.Tsnr[:-1][:-1])[::-1].index(";"))
+                    self.Tsnr = self.Tsnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_frac,2))+ ' ; '
+                    lastsplit = ((len(self.Lsnr[:-1])-1)-(self.Lsnr[:-1][:-1])[::-1].index(";"))
+                    self.Lsnr = self.Lsnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_L,2))+ ' ; '
+                    lastsplit = ((len(self.Csnr[:-1])-1)-(self.Csnr[:-1][:-1])[::-1].index(";"))
+                    self.Csnr = self.Csnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_C,2))+ ' ; '
+
+                    lastsplit = ((len(self.Tpol[:-1])-1)-(self.Tpol[:-1][:-1])[::-1].index(";"))
+                    self.Tpol = self.Tpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ' ; '
+                    lastsplit = ((len(self.Lpol[:-1])-1)-(self.Lpol[:-1][:-1])[::-1].index(";"))
+                    self.Lpol = self.Lpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_L,2))+ ' ; '
+                    lastsplit = ((len(self.absCpol[:-1])-1)-(self.absCpol[:-1][:-1])[::-1].index(";"))
+                    self.absCpol = self.absCpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ' ; '
+                    lastsplit = ((len(self.Cpol[:-1])-1)-(self.Cpol[:-1][:-1])[::-1].index(";"))
+                    self.Cpol = self.Cpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_C,2))+ ' ; '
+
+                    lastsplit = ((len(self.Tpolerr[:-1])-1)-(self.Tpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Tpolerr = self.Tpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ' ; '
+                    lastsplit = ((len(self.Lpolerr[:-1])-1)-(self.Lpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Lpolerr = self.Lpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ; '
+                    lastsplit = ((len(self.absCpolerr[:-1])-1)-(self.absCpolerr[:-1][:-1])[::-1].index(";"))
+                    self.absCpolerr = self.absCpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ; '
+                    lastsplit = ((len(self.Cpolerr[:-1])-1)-(self.Cpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Cpolerr = self.Cpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ; '
+
+                    lastsplit = ((len(self.avgPA[:-1])-1)-(self.avgPA[:-1][:-1])[::-1].index(";"))
+                    self.avgPA = self.avgPA[:lastsplit+1] + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ; '
+                    lastsplit = ((len(self.avgPAerr[:-1])-1)-(self.avgPAerr[:-1][:-1])[::-1].index(";"))
+                    self.avgPAerr = self.avgPAerr[:lastsplit+1] + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ; '
+
+
+                elif curr_comp == len(self.fixed_comps) - 1:
+
+                    lastsplit = ((len(self.snr[:-1])-1)-(self.snr[:-1][:-1])[::-1].index(";"))
+                    self.snr = self.snr[:lastsplit+1] + r'{a}'.format(a=np.around(snr,2))+ ' ) '
+                    lastsplit = ((len(self.Tsnr[:-1])-1)-(self.Tsnr[:-1][:-1])[::-1].index(";"))
+                    self.Tsnr = self.Tsnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_frac,2))+ ' ) '
+                    lastsplit = ((len(self.Lsnr[:-1])-1)-(self.Lsnr[:-1][:-1])[::-1].index(";"))
+                    self.Lsnr = self.Lsnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_L,2))+ ' ) '
+                    lastsplit = ((len(self.Csnr[:-1])-1)-(self.Csnr[:-1][:-1])[::-1].index(";"))
+                    self.Csnr = self.Csnr[:lastsplit+1] + r'{a}'.format(a=np.around(snr_C,2))+ ' ) '
+
+                    lastsplit = ((len(self.Tpol[:-1])-1)-(self.Tpol[:-1][:-1])[::-1].index(";"))
+                    self.Tpol = self.Tpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_frac,2))+ ' ) '
+                    lastsplit = ((len(self.Lpol[:-1])-1)-(self.Lpol[:-1][:-1])[::-1].index(";"))
+                    self.Lpol = self.Lpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_L,2))+ ' ) '
+                    lastsplit = ((len(self.absCpol[:-1])-1)-(self.absCpol[:-1][:-1])[::-1].index(";"))
+                    self.absCpol = self.absCpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_C_abs,2))+ ' ) '
+                    lastsplit = ((len(self.Cpol[:-1])-1)-(self.Cpol[:-1][:-1])[::-1].index(";"))
+                    self.Cpol = self.Cpol[:lastsplit+1] + r'{a}%'.format(a=np.around(100*avg_C,2))+ ' ) '
+
+                    lastsplit = ((len(self.Tpolerr[:-1])-1)-(self.Tpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Tpolerr = self.Tpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_frac,2))+ ' ) '
+                    lastsplit = ((len(self.Lpolerr[:-1])-1)-(self.Lpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Lpolerr = self.Lpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_L,2))+ ' ) '
+                    lastsplit = ((len(self.absCpolerr[:-1])-1)-(self.absCpolerr[:-1][:-1])[::-1].index(";"))
+                    self.absCpolerr = self.absCpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_C_abs,2))+ ' ) '
+                    lastsplit = ((len(self.Cpolerr[:-1])-1)-(self.Cpolerr[:-1][:-1])[::-1].index(";"))
+                    self.Cpolerr = self.Cpolerr[:lastsplit+1] + r'{a}%'.format(a=np.around(100*sigma_C,2))+ ' ) '
+
+                    lastsplit = ((len(self.avgPA[:-1])-1)-(self.avgPA[:-1][:-1])[::-1].index(";"))
+                    self.avgPA = self.avgPA[:lastsplit+1] + r'{a}'.format(a=np.around((180/np.pi)*avg_PA,2))+ ' ) '
+                    lastsplit = ((len(self.avgPAerr[:-1])-1)-(self.avgPAerr[:-1][:-1])[::-1].index(";"))
+                    self.avgPAerr = self.avgPAerr[:lastsplit+1] + r'{a}'.format(a=np.around((180/np.pi)*sigma_PA,2))+ ' ) '
+
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to compute full polarization"
+                self.param.trigger('RMcal_button')
+        except Exception as e:
+            self.error2 = "From callback_RMcal(): " + str(e)
+        return
+    RMcal_button = param.Action(clicked_RMcal,label="RM Calibrate")
+
+    #clear temp data
+    def clicked_clear(self):
+        try:
+            self.error = "Clearing pkl cache files..."
+            t1 = time.time()
+            for fname in tmp_files:
+                f = open(tmp_file_dir + fname,"wb")
+                pkl.dump(dict(),f)
+                f.close()
+            self.error = "Complete: " + str(np.around(time.time()-t1)) + " s to clear pkl files" 
+            self.param.trigger('clear_data')
+        except Exception as e:
+            self.error = "From clicked_clear(): " + str(e)
+        return
+    clear_data = param.Action(clicked_clear,label="Clear Cached Pkl Data")
 
     #***VIEWING MODULE***#
     #@param.depends('frb_submitted', watch=True)
@@ -2364,748 +2648,3 @@ def RM_plot(RMsnrs,trial_RM,RMsnrstools,trial_RM_tools,RMsnrszoom,trial_RMzoom,R
 
 
 
-class RM_panel(param.Parameterized):
-
-    error = param.String(default="",label="output/errors")
-    I = np.zeros((20480,6144))
-    Q = np.zeros((20480,6144))
-    U = np.zeros((20480,6144))
-    V = np.zeros((20480,6144))
-
-    I_f = np.nan*np.ones(6144)
-    Q_f = np.nan*np.ones(6144)
-    U_f = np.nan*np.ones(6144)
-    V_f = np.nan*np.ones(6144)
-
-    freq_test = [np.zeros(6144)]*4
-    n_t = 1
-    n_f = 1
-    tsamp = -1
-    fobj = None
-    curr_weights = np.nan*np.ones(20480)
-    timestarts = []
-    timestops = []
-    timestart_in = 0
-    timestop_in = 0
-    comp_dict = dict()
-    fullburst_dict = dict()
-    curr_comp = 0
-
-    RA = 0#np.nan
-    DEC = 0#np.nan
-
-
-    #***Initial RM synthesis + Rm tools***#
-    init_RM = True
-    fine_RM = False
-    done_RM = False
-    trial_RM = np.linspace(-1e6,1e6,1000)
-    trial_RM_tools = copy.deepcopy(trial_RM)
-    trial_phi = [0]
-    RM1_str = param.String(default="",label=r'Initial RM (rad/m^2)')
-    RMerr1_str = param.String(default="",label=r'error (rad/m^2)')
-    RM1 = 0.0
-    RMerr1 = 0.0
-    RM1tools_str = param.String(default="",label=r'Initial RM-Tools RM (rad/m^2)')
-    RMerr1tools_str = param.String(default="",label=r'error (rad/m^2)')
-    RM1tools = 0.0
-    RMerr1tools = 0.0
-    RMsnrs1 = np.nan*np.ones(len(trial_RM))
-    RMsnrs1tools = np.nan*np.ones(np.min([len(trial_RM),int(1e4)]))
-    RMmin = param.String(default="-1000000",label=r'Minimum Trial RM (rad/m^2)')
-    RMmax = param.String(default="1000000",label=r'Maximum Trial RM (rad/m^2)')
-    numRMtrials = param.String(default="1000",label=r'Number of Trial RMs')
-
-
-    #***Fine RM synthesis + RM tools + S/N method***#
-    numRMtrials_zoom = param.String(default="5000",label=r'Number of Trial RMs (Fine)')
-    zoom_window = param.String(default="1000",label=r'RM range above/below initial result (rad/m^2)')
-    trial_RM2 = np.linspace(0-1000,0+1000,5000)
-    trial_RM_tools_zoom = copy.deepcopy(trial_RM2)
-    RMsnrs1zoom = np.nan*np.ones(len(trial_RM2))
-    RM1zoom_str = param.String(default="",label=r'Fine RM Synthesis RM (rad/m^2)')
-    RMerr1zoom_str = param.String(default="",label=r'error (rad/m^2)')
-    RM1zoom = 0.0
-    RMerr1zoom = 0.0
-    RMtools_zoom_flag = True
-    RM1tools_zoom_str = param.String(default="",label=r'Fine RM-Tools RM (rad/m^2)')
-    RMerr1tools_zoom_str = param.String(default="",label=r'error (rad/m^2)')
-    RM1tools_zoom = 0.0
-    RMerr1tools_zoom = 0.0
-    RMsnrs1tools_zoom = np.nan*np.ones(np.min([len(trial_RM2),int(1e4)]))
-    RMsnrs2zoom = np.nan*np.ones(len(trial_RM2))
-    RM2zoom_str = param.String(default="",label=r'Fine S/N Method RM (rad/m^2)')
-    RMerr2zoom_str = param.String(default="",label=r'error (rad/m^2)')
-    RM2zoom = 0.0
-    RMerr2zoom = 0.0
-
-    frb_name = ""
-    ids = ""
-    nickname = ""
-    datadir = ""
-    MJD = 0
-
-    RM_FWHM = 0.0
-
-    loaded = False
-    def clicked_run(self):
-        try:
-            #check if there's only one component
-            self.error = "AYOO " + str(self.comp_dict.keys()) + " " + str(self.curr_comp)
-            if self.curr_comp == -1 and len(self.comp_dict.keys()) == 1:
-                self.error = "Only one component, copying results..."
-                t1 = time.time()
-
-                if self.init_RM:
-                    self.RM1_str = self.RM1_str + ") " + str(np.around(self.RM1,2))
-                    self.RMerr1_str = self.RMerr1_str + ") " + str(np.around(self.RMerr1,2))
-
-                    self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
-                    self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
-                
-                    self.fullburst_dict["RM1"] = self.RM1
-                    self.fullburst_dict["RMerr1"] = self.RMerr1
-                    self.fullburst_dict["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
-                    self.fullburst_dict["trial_RM"] = copy.deepcopy(self.trial_RM)
-
-                    self.fullburst_dict["RM1tools"] = self.RM1tools
-                    self.fullburst_dict["RMerr1tools"] = self.RMerr1tools
-                    self.fullburst_dict["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
-                    self.fullburst_dict["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
-
-                    self.init_RM = False
-                    self.fine_RM = True
-                elif self.fine_RM:
-                    self.RM1zoom_str = self.RM1zoom_str + ") " + str(np.around(self.RM1zoom,2))
-                    self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
-
-                    self.fullburst_dict["RM1zoom"] = self.RM1zoom
-                    self.fullburst_dict["RMerr1zoom"] = self.RMerr1zoom
-                    self.fullburst_dict["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
-                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-
-
-                    if self.RMtools_zoom_flag:
-                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
-                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
-
-                        self.fullburst_dict["RM1tools_zoom"] = self.RM1tools_zoom
-                        self.fullburst_dict["RMerr1tools_zoom"] = self.RMerr1tools_zoom
-                        self.fullburst_dict["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
-                        self.fullburst_dict["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
-
-                    self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
-                    self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
-
-                    self.fullburst_dict["RM2zoom"] = self.RM2zoom
-                    self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
-                    self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
-                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-                    self.fullburst_dict["RM_FWHM"] = self.RM_FWHM
-
-                    self.fine_RM = False
-                    self.done_RM = True
-
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to copy RM results"
-
-            elif self.init_RM:
-                self.error = "Running initial RM synthesis..."
-                t1 = time.time()
-                self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
-                self.RM1,phi1,self.RMsnrs1,self.RMerr1 = dsapol.faradaycal(self.I_f,self.Q_f,self.U_f,self.V_f,self.freq_test,self.trial_RM,self.trial_phi,plot=False,show=False,fit_window=100,err=True)
-                
-                if (self.RM1_str == "") and (self.curr_comp != -1):
-                    self.RM1_str ="(" + str(np.around(self.RM1,2))
-                    self.RMerr1_str = "(" + str(np.around(self.RMerr1,2))
-                elif self.curr_comp != -1:
-                    self.RM1_str = self.RM1_str + " ; " + str(np.around(self.RM1,2))
-                    self.RMerr1_str = self.RMerr1_str + " ; " + str(np.around(self.RMerr1,2))
-                elif self.curr_comp == -1:
-                    self.RM1_str = self.RM1_str + ") " + str(np.around(self.RM1,2))
-                    self.RMerr1_str = self.RMerr1_str + ") " + str(np.around(self.RMerr1,2))
-
-                if self.curr_comp != -1:
-                    self.comp_dict[self.curr_comp]["RM1"] = self.RM1
-                    self.comp_dict[self.curr_comp]["RMerr1"] = self.RMerr1
-                    self.comp_dict[self.curr_comp]["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
-                    self.comp_dict[self.curr_comp]["trial_RM"] = copy.deepcopy(self.trial_RM)
-                else:
-                    self.fullburst_dict["RM1"] = self.RM1
-                    self.fullburst_dict["RMerr1"] = self.RMerr1
-                    self.fullburst_dict["RMsnrs1"] = copy.deepcopy(self.RMsnrs1)
-                    self.fullburst_dict["trial_RM"] = copy.deepcopy(self.trial_RM)
-
-
-                self.error = "Running initial RM tools..."
-                #trial_RM_tools = np.linspace(-1e6,1e6,int(1e4))
-
-
-                n_off = int(12000/self.n_t)
-
-
-                Ierr = np.std(self.I[:,:n_off],axis=1)
-                Ierr[Ierr.mask] = np.nan
-                Ierr = Ierr.data
-
-                Qerr = np.std(self.Q[:,:n_off],axis=1)
-                Qerr[Qerr.mask] = np.nan
-                Qerr = Qerr.data
-
-                Uerr = np.std(self.U[:,:n_off],axis=1)
-                Uerr[Uerr.mask] = np.nan
-                Uerr = Uerr.data
-
-                I_fcal_rmtools = self.I_f.data
-                I_fcal_rmtools[self.I_f.mask] = np.nan
-
-                Q_fcal_rmtools = self.Q_f.data
-                Q_fcal_rmtools[self.Q_f.mask] = np.nan
-
-                U_fcal_rmtools = self.U_f.data
-                U_fcal_rmtools[self.U_f.mask] = np.nan
-
-                if len(self.trial_RM) <= 1e4:
-                    self.trial_RM_tools = copy.deepcopy(self.trial_RM)
-                else:
-                    self.error = "Using maximum 1e4 trials for RM tools..."
-                    self.trial_RM_tools = np.linspace(np.min(self.trial_RM),np.max(self.trial_RM),int(1e4))
-                out=run_rmsynth([self.freq_test[0]*1e6,I_fcal_rmtools,Q_fcal_rmtools,U_fcal_rmtools,Ierr,Qerr,Uerr],phiMax_radm2=np.max(self.trial_RM_tools),dPhi_radm2=np.abs(self.trial_RM_tools[1]-self.trial_RM_tools[0]))
-
-                self.error = "RM Cleaning..."
-                out=run_rmclean(out[0],out[1],2)
-
-                self.trial_RM_tools = out[1]["phiArr_radm2"]
-                self.RMsnrs1tools = np.abs(out[1]["cleanFDF"])
-                self.RM1tools = out[0]["phiPeakPIchan_rm2"]
-                self.RMerr1tools = out[0]["dPhiPeakPIchan_rm2"]
-                if (self.RM1tools_str == "") and (self.curr_comp != -1):
-                    self.RM1tools_str ="(" + str(np.around(self.RM1tools,2))
-                    self.RMerr1tools_str = "(" + str(np.around(self.RMerr1tools,2))
-                elif self.curr_comp != -1:
-                    self.RM1tools_str = self.RM1tools_str + " ; " + str(np.around(self.RM1tools,2))
-                    self.RMerr1tools_str = self.RMerr1tools_str + " ; " + str(np.around(self.RMerr1tools,2))
-                elif self.curr_comp == -1:
-                    self.RM1tools_str = self.RM1tools_str + ") " + str(np.around(self.RM1tools,2))
-                    self.RMerr1tools_str = self.RMerr1tools_str + ") " + str(np.around(self.RMerr1tools,2))
-
-                if self.curr_comp != -1:
-                    self.comp_dict[self.curr_comp]["RM1tools"] = self.RM1tools
-                    self.comp_dict[self.curr_comp]["RMerr1tools"] = self.RMerr1tools
-                    self.comp_dict[self.curr_comp]["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
-                    self.comp_dict[self.curr_comp]["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
-                else:
-                    self.fullburst_dict["RM1tools"] = self.RM1tools
-                    self.fullburst_dict["RMerr1tools"] = self.RMerr1tools
-                    self.fullburst_dict["RMsnrs1tools"] = copy.deepcopy(self.RMsnrs1tools)
-                    self.fullburst_dict["trial_RM_tools"] = copy.deepcopy(self.trial_RM_tools)
-
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run initial RM synthesis"
-
-                self.init_RM = False
-                self.fine_RM = True
-            elif self.fine_RM:
-                self.error = "Running fine RM synthesis..."
-                t1 = time.time()
-                
-                for i in self.comp_dict.keys():
-                    self.timestarts.append(self.comp_dict[i]["timestart"])
-                    self.timestops.append(self.comp_dict[i]["timestop"])
-                if self.curr_comp == -1:
-                    self.timestart_in = np.min(self.timestarts)
-                    self.timestop_in = np.max(self.timestops)
-                else:
-                    self.timestart_in = self.timestarts[-1]
-                    self.timestop_in = self.timestops[-1]
-
-                self.trial_RM2 = np.linspace(float(self.RM1)-float(self.zoom_window),float(self.RM1)+float(self.zoom_window),int(self.numRMtrials_zoom))
-
-                tmpRM1zoom,phi1zoom,self.RMsnrs1zoom,tmpRMerr1zoom = dsapol.faradaycal(self.I_f,self.Q_f,self.U_f,self.V_f,self.freq_test,self.trial_RM2,self.trial_phi,plot=False,show=False,fit_window=100,err=True)
-
-                fit_window=50
-                oversamps = 5000
-                poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window],p0=[1,1,float(self.RM1)],sigma=1/self.RMsnrs1zoom[np.argmax(self.RMsnrs1zoom)-fit_window:np.argmax(self.RMsnrs1zoom)+fit_window])
-                FWHMRM1zoom,tmp,tmp,tmp = peak_widths(self.RMsnrs1zoom,[np.argmax(self.RMsnrs1zoom)])
-                noisezoom = L_sigma(self.Q,self.U,self.timestart_in,self.timestop_in,plot=False,weighted=True,I_w_t_filt=self.curr_weights)
-                self.RM1zoom = poptpar[2]
-                self.RMerr1zoom = FWHMRM1zoom[0]*(self.trial_RM2[1]-self.trial_RM2[0])*noisezoom/(2*np.max(self.RMsnrs1zoom))
-
-                if (self.RM1zoom_str == "") and (self.curr_comp != -1):
-                    self.RM1zoom_str ="(" + str(np.around(self.RM1zoom,2))
-                    self.RMerr1zoom_str = "(" + str(np.around(self.RMerr1zoom,2))
-                elif self.curr_comp != -1:
-                    self.RM1zoom_str = self.RM1zoom_str + " ; " + str(np.around(self.RM1zoom,2))
-                    self.RMerr1zoom_str = self.RMerr1zoom_str + " ; " + str(np.around(self.RMerr1zoom,2))
-                elif self.curr_comp == -1:
-                    self.RM1zoom_str = self.RM1zoom_str + ") " + str(np.around(self.RM1zoom,2))
-                    self.RMerr1zoom_str = self.RMerr1zoom_str + ") " + str(np.around(self.RMerr1zoom,2))
-
-
-                if self.curr_comp != -1:
-                    self.comp_dict[self.curr_comp]["RM1zoom"] = self.RM1zoom
-                    self.comp_dict[self.curr_comp]["RMerr1zoom"] = self.RMerr1zoom
-                    self.comp_dict[self.curr_comp]["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
-                    self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-                else:
-                    self.fullburst_dict["RM1zoom"] = self.RM1zoom
-                    self.fullburst_dict["RMerr1zoom"] = self.RMerr1zoom
-                    self.fullburst_dict["RMsnrs1zoom"] = copy.deepcopy(self.RMsnrs1zoom)
-                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-
-
-                #check if RM in range for RM tools
-                self.RMtools_zoom_flag = np.abs(float(self.RM1zoom)) < 1000
-                if self.curr_comp != -1:
-                    self.comp_dict[self.curr_comp]["RMtools_zoom_flag"] = self.RMtools_zoom_flag
-                else:
-                    self.fullburst_dict["RMtools_zoom_flag"] = self.RMtools_zoom_flag
-                
-
-                if not self.RMtools_zoom_flag:
-                    self.error = "RM out of range for RM tools...skipping"
-                else:
-                    self.error = "Running fine RM tools..."
-
-                    n_off = int(12000/self.n_t)
-
-                    Ierr = np.std(self.I[:,:n_off],axis=1)
-                    Ierr[Ierr.mask] = np.nan
-                    Ierr = Ierr.data
-
-                    Qerr = np.std(self.Q[:,:n_off],axis=1)
-                    Qerr[Qerr.mask] = np.nan
-                    Qerr = Qerr.data
-
-                    Uerr = np.std(self.U[:,:n_off],axis=1)
-                    Uerr[Uerr.mask] = np.nan
-                    Uerr = Uerr.data
-
-                    I_fcal_rmtools = self.I_f.data
-                    I_fcal_rmtools[self.I_f.mask] = np.nan
-
-                    Q_fcal_rmtools = self.Q_f.data
-                    Q_fcal_rmtools[self.Q_f.mask] = np.nan
-
-                    U_fcal_rmtools = self.U_f.data
-                    U_fcal_rmtools[self.U_f.mask] = np.nan
-
-                    if len(self.trial_RM2) <= 1e4:
-                        self.trial_RM_tools_zoom = copy.deepcopy(self.trial_RM2)
-                    else:
-                        self.error = "Using maximum 1e4 trials for RM tools..."
-                        self.trial_RM_tools_zoom = np.linspace(np.min(self.trial_RM2),np.max(self.trial_RM2),int(1e4))
-                    out=run_rmsynth([self.freq_test[0]*1e6,I_fcal_rmtools,Q_fcal_rmtools,U_fcal_rmtools,Ierr,Qerr,Uerr],phiMax_radm2=np.max(np.abs(self.trial_RM_tools_zoom)),dPhi_radm2=np.abs(self.trial_RM_tools_zoom[1]-self.trial_RM_tools_zoom[0]))
-
-                    self.error = "RM Cleaning..."
-                    out=run_rmclean(out[0],out[1],2)
-
-                    self.trial_RM_tools_zoom = out[1]["phiArr_radm2"]
-                    self.RMsnrs1tools_zoom = np.abs(out[1]["cleanFDF"])
-                    self.RM1tools_zoom = out[0]["phiPeakPIchan_rm2"]
-                    self.RMerr1tools_zoom = out[0]["dPhiPeakPIchan_rm2"]
-                    if (self.RM1tools_zoom_str == "") and (self.curr_comp != -1):
-                        self.RM1tools_zoom_str ="(" + str(np.around(self.RM1tools_zoom,2))
-                        self.RMerr1tools_zoom_str = "(" + str(np.around(self.RMerr1tools_zoom,2))
-                    elif self.curr_comp != -1:
-                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + " ; " + str(np.around(self.RM1tools_zoom,2))
-                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + " ; " + str(np.around(self.RMerr1tools_zoom,2))
-                    elif self.curr_comp == -1:
-                        self.RM1tools_zoom_str = self.RM1tools_zoom_str + ") " + str(np.around(self.RM1tools_zoom,2))
-                        self.RMerr1tools_zoom_str = self.RMerr1tools_zoom_str + ") " + str(np.around(self.RMerr1tools_zoom,2))
-
-                    if self.curr_comp != -1:
-                        self.comp_dict[self.curr_comp]["RM1tools_zoom"] = self.RM1tools_zoom
-                        self.comp_dict[self.curr_comp]["RMerr1tools_zoom"] = self.RMerr1tools_zoom
-                        self.comp_dict[self.curr_comp]["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
-                        self.comp_dict[self.curr_comp]["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
-                    else:
-                        self.fullburst_dict["RM1tools_zoom"] = self.RM1tools_zoom
-                        self.fullburst_dict["RMerr1tools_zoom"] = self.RMerr1tools_zoom
-                        self.fullburst_dict["RMsnrs1tools_zoom"] = copy.deepcopy(self.RMsnrs1tools_zoom)
-                        self.fullburst_dict["trial_RM_tools_zoom"] = copy.deepcopy(self.trial_RM_tools_zoom)
-
-                    
-
-                self.error = "Running fine S/N method..."
-
-
-                RM2,phi2,self.RMsnrs2zoom,RMerr2,upp,low,sig,QUnoise = dsapol.faradaycal_SNR(self.I,self.Q,self.U,self.V,self.freq_test,self.trial_RM2,self.trial_phi,self.ibox,self.tsamp,plot=False,n_f=self.n_f,n_t=self.n_t,show=False,err=True,weighted=True,n_off=int(12000/self.n_t),fobj=self.fobj,input_weights=np.trim_zeros(self.curr_weights),timestart_in=self.timestart_in,timestop_in=self.timestop_in)
-                self.RM_FWHM = 2*RMerr2
-
-                fit_window=50
-                oversamps = 5000
-                poptpar,pcovpar = curve_fit(fit_parabola,self.trial_RM2[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window],p0=[1,1,RM2],sigma=1/self.RMsnrs2zoom[np.argmax(self.RMsnrs2zoom)-fit_window:np.argmax(self.RMsnrs2zoom)+fit_window])
-                self.RM2zoom = poptpar[2]
-                self.RMerr2zoom = dsapol.RM_error_fit(np.max(self.RMsnrs2zoom))
-                if (self.RM2zoom_str == "") and (self.curr_comp != -1):
-                    self.RM2zoom_str ="(" + str(np.around(self.RM2zoom,2))
-                    self.RMerr2zoom_str = "(" + str(np.around(self.RMerr2zoom,2))
-                elif self.curr_comp != -1:
-                    self.RM2zoom_str = self.RM2zoom_str + " ; " + str(np.around(self.RM2zoom,2))
-                    self.RMerr2zoom_str = self.RMerr2zoom_str + " ; " + str(np.around(self.RMerr2zoom,2))
-                elif self.curr_comp == -1:
-                    self.RM2zoom_str = self.RM2zoom_str + ") " + str(np.around(self.RM2zoom,2))
-                    self.RMerr2zoom_str = self.RMerr2zoom_str + ") " + str(np.around(self.RMerr2zoom,2))
-                
-
-                if self.curr_comp != -1:
-                    self.comp_dict[self.curr_comp]["RM2zoom"] = self.RM2zoom
-                    self.comp_dict[self.curr_comp]["RMerr2zoom"] = self.RMerr2zoom
-                    self.comp_dict[self.curr_comp]["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
-                    self.comp_dict[self.curr_comp]["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-                    self.comp_dict[self.curr_comp]["RM_FWHM"] = 2*RMerr2
-                else:
-                    self.fullburst_dict["RM2zoom"] = self.RM2zoom
-                    self.fullburst_dict["RMerr2zoom"] = self.RMerr2zoom
-                    self.fullburst_dict["RMsnrs2zoom"] = copy.deepcopy(self.RMsnrs2zoom)
-                    self.fullburst_dict["trial_RM2"] = copy.deepcopy(self.trial_RM2)
-                    self.fullburst_dict["RM_FWHM"] = 2*RMerr2
-
-                self.fine_RM = False
-                self.done_RM = True
-    
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to run fine RM synthesis " + str(self.init_RM) + " " + str(self.fine_RM) + " " + str(self.done_RM)
-                
-        except Exception as e:
-            #self.error = "From clicked_run(): " + str(e) + " " + str(len(self.curr_weights)) + " " + str(len(np.trim_zeros(self.curr_weights))) + " " + str(self.timestop_in-self.timestart_in)
-            self.error = "From clicked_run(): " + str(e) + " " + str(len(self.I_f)) + " " + str(len(self.freq_test))
-        return
-
-    #plotting
-    def clicked_plot(self):
-        try:
-            suffix="_TESTING"
-
-            #individual components
-            if self.curr_comp != -1 and self.done_RM:
-                i =  self.curr_comp
-
-                self.error = "Exporting summary plot for Component " + str(i+1) + "..."
-                t1 = time.time()
-
-                RMsnrs = (self.RMsnrs1,self.RMsnrs1tools)
-                if self.RMtools_zoom_flag:
-                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs1tools_zoom,self.RMsnrs2zoom)
-                else:
-                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs2zoom)
-                dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.RM2zoom,self.RMerr2zoom,self.trial_RM,self.trial_RM2,self.trial_RM_tools,self.trial_RM_tools_zoom,threshold=9,suffix="_PEAK" + str(i+1) + suffix,show=False)
-
-                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + "_PEAK" + str(i+1) + suffix + ".pdf"
-
-            #dict_keys(['timestart', 'timestop', 'comp_num', 'buff', 'n_t_weight', 'sf_window_weights', 'ibox', 'mask_start', 'mask_stop', 'weights', 'multipeaks', 'sigflag', 'intL', 'intR', 'I_f', 'Q_f', 'U_f', 'V_f', 'I_f_init', 'Q_f_init', 'U_f_init', 'V_f_init', 'PA_f', 'PA_f_errs', 'PA_f_init', 'PA_f_errs_init', 'PA_pre', 'PAerr_pre', 'T/I_pre', 'T/I_pre_err', 'T/I_pre_snr', 'L/I_pre', 'L/I_pre_err', 'L/I_pre_snr', 'absV/I_pre', 'absV/I_pre_err', 'V/I', 'V/I_err', 'V/I_snr', 'I_snr', 'RM1', 'RMerr1', 'RMsnrs1', 'trial_RM', 'RM1tools', 'RMerr1tools', 'RMsnrs1tools', 'trial_RM_tools', 'RM1zoom', 'RMerr1zoom', 'RMsnrs1zoom', 'trial_RM2', 'RMtools_zoom_flag', 'RM1tools_zoom', 'RMerr1tools_zoom', 'RMsnrs1tools_zoom', 'trial_RM_tools_zoom', 'RM2zoom', 'RMerr2zoom', 'RMsnrs2zoom'])
-            #all components and full burst
-            elif self.curr_comp == -1 and self.done_RM:
-                for i in range(len(self.comp_dict.keys())):
-                    self.error = "Exporting summary plot for Component " + str(i+1) + "..."
-                    t1 = time.time()
-
-                    RMsnrs = (self.comp_dict[i]["RMsnrs1"],self.comp_dict[i]["RMsnrs1tools"])
-                    if self.comp_dict[i]["RMtools_zoom_flag"]:
-                        RMzoomsnrs = (self.comp_dict[i]["RMsnrs1zoom"],self.comp_dict[i]["RMsnrs1tools_zoom"],self.comp_dict[i]["RMsnrs2zoom"])
-                    else:
-                        RMzoomsnrs = (self.comp_dict[i]["RMsnrs1zoom"],self.comp_dict[i]["RMsnrs2zoom"])
-                    dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.comp_dict[i]["RM2zoom"],self.comp_dict[i]["RMerr2zoom"],self.comp_dict[i]["trial_RM"],self.comp_dict[i]["trial_RM2"],self.comp_dict[i]["trial_RM_tools"],self.comp_dict[i]["trial_RM_tools_zoom"],threshold=9,suffix="_PEAK" + str(i+1) + suffix,show=False)
-
-                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + "_PEAK" + str(i+1) + suffix + ".pdf"
-
-                self.error = "Exporting summary plot..."
-                t1 = time.time()
-
-                RMsnrs = (self.RMsnrs1,self.RMsnrs1tools)
-                if self.RMtools_zoom_flag:
-                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs1tools_zoom,self.RMsnrs2zoom)
-                else:
-                    RMzoomsnrs = (self.RMsnrs1zoom,self.RMsnrs2zoom)
-                dsapol.RM_summary_plot(self.ids,self.nickname,RMsnrs,RMzoomsnrs,self.RM2zoom,self.RMerr2zoom,self.trial_RM,self.trial_RM2,self.trial_RM_tools,self.trial_RM_tools_zoom,threshold=9,suffix=suffix,show=False)
-
-                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + "s to export summary plot to " + self.datadir + self.ids + "_" + self.nickname + "_RMsummary_plot" + suffix + ".pdf"
-
-
-
-
-        except Exception as e:
-            self.error = "From clicked_plot(): " + str(e)
-            self.error = str(self.comp_dict[0].keys())
-        return
-
-    def clicked_update(self):
-        self.error = "Forcing Display Update..."
-        self.param.trigger('update')
-        return
-
-    #get galactic RM
-    def clicked_galrm(self):
-        try:
-            self.error = "Computing Galactic RM..."
-            t1 = time.time()
-            self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
-            self.RM_gal_str = str(np.around(self.RM_gal,2))
-            self.RM_galerr_str = str(np.around(self.RM_galerr,2))
-            self.got_rm_gal = True
-            self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
-            self.param.trigger('galrm')
-        except Exception as e:
-            self.error = "From clicked_galrm(): " + str(e)
-            
-        return
-
-    #get ionospheric RM
-    def clicked_ionrm(self):
-        try:
-            if self.datadir == "":
-                self.error = "Please load FRB data prior to computing ionospheric RM"
-
-            else:
-                self.error = "Getting ionospheric RM command..."
-                t1 = time.time()
-                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.MJD,self.datadir)
-                dir_list = os.listdir(self.datadir)
-
-                if ion_file not in dir_list:
-                    self.error = " To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
-                else:
-                    self.error = "Computing ionospheric RM..."
-
-                    os.system(command)
-                    self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
-                    self.RM_ion_str = str(np.around(self.RM_ion,2))
-                    self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
-                    self.got_rm_ion = True
-                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM"
-            self.param.trigger('ionrm')
-
-        except Exception as e:
-            self.error = "From clicked_ionrm(): " + str(e)
-
-        return
-
-
-
-
-    update = param.Action(clicked_update,label="Force Display Update")
-    run = param.Action(clicked_run,label="Run")
-    exportplot = param.Action(clicked_plot,label='Export Summary Plot')
-    
-    #***Galactic and Ionospheric RM***#
-    RM_gal_str = param.String(default="",label=r'Galactic RM (rad/m^2)')
-    RM_galerr_str = param.String(default="",label=r'error (rad/m^2)')
-    RM_gal = 0
-    RM_galerr = 0
-    got_rm_gal = False
-
-    RM_ion_str = param.String(default="",label=r'Ionospheric RM (rad/m^2)')
-    RM_ionerr_str = param.String(default="",label=r'error (rad/m^2)')
-    RM_ion = 0
-    RM_ionerr = 0
-    got_rm_ion = False
-
-    galrm = param.Action(clicked_galrm,label='Compute Galactic RM')
-    ionrm = param.Action(clicked_ionrm,label='Compute Ionospheric RM')
-
-    """
-    def gal_rm_panel(self):
-        #self.error = "Computing Galactic RM..." + str(self.got_rm_gal)
-        t1 = time.time()
-        self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
-        self.RM_gal_str = str(np.around(self.RM_gal,2))
-        self.RM_galerr_str = str(np.around(self.RM_galerr,2))
-        #self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
-        self.got_rm_gal = True
-        #self.clicked_update()
-        return
-    def ion_rm_panel(self):
-        site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.fobj,self.datadir)
-        dir_list = os.listdir(self.datadir)
-        #self.error = site + " " +ion_file
-               
-        #if ion_file not in dir_list:
-        #    self.error = "To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
-        #    #pass
-        if ion_file in dir_list:
-            #self.error = "Computing Ionospheric RM..." + str(self.got_rm_ion)
-            t1 = time.time()
-            os.system(command)
-            self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
-            self.RM_ion_str = str(np.around(self.RM_ion,2))
-            self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
-            #self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM " + str(self.got_rm_ion) + str(self.got_rm_gal)
-            self.got_rm_ion = True
-            #self.clicked_update()
-        return
-
-    """
-    """
-    #check flage in ready.pkl
-    def check_ready_flag(self):
-        try:
-            f = open(tmp_file_dir + "ready.pkl","rb")
-            x = pkl.load(f)
-            f.close()
-            return x["ready"]
-        except Exception as e:
-            self.error = "From check_ready_flag(): " + str(e)
-            return
-    """
-
-    #setup data
-    def clicked_pkl_load(self):
-        try:
-            self.error = "Loading Data from pkl files..."
-            t1 = time.time()
-            #get dynamic spectra
-            f = open(tmp_file_dir + "dyn_spectra.pkl","rb")
-            dyn_spectra_dict = pkl.load(f)
-            f.close()
-            self.I = dyn_spectra_dict["I"]
-            self.Q = dyn_spectra_dict["Q"]
-            self.U = dyn_spectra_dict["U"]
-            #self.V = dyn_spectra_dict["V"]
-
-            #get 1D spectra
-            f = open(tmp_file_dir + "1D_spectra.pkl","rb")
-            spectra_dict = pkl.load(f)
-            f.close()
-            self.I_f = spectra_dict["I_f"]
-            self.Q_f = spectra_dict["Q_f"]
-            self.U_f = spectra_dict["U_f"]
-            #self.V_f = spectra_dict["V_f"]
-            self.freq_test = spectra_dict["freq_test"]
-
-
-            #get parameters
-            f = open(tmp_file_dir + "parameters.pkl","rb")
-            parameters_dict = pkl.load(f)
-            f.close()
-            self.curr_weights = parameters_dict["curr_weights"]            
-            self.n_t = parameters_dict["n_t"]
-            self.n_f = parameters_dict["n_f"]
-            self.curr_comp = parameters_dict["curr_comp"]
-            self.ibox = parameters_dict["ibox"]
-            self.tsamp = parameters_dict["tsamp"]
-            self.nickname = parameters_dict["nickname"]
-            self.ids = parameters_dict["ids"]
-            self.datadir = parameters_dict["datadir"]
-
-            #get comp_dict
-            f = open(tmp_file_dir + "comp_dict.pkl","rb")
-            self.comp_dict = pkl.load(f)
-            f.close()
-
-            #get fullburst dict
-            f = open(tmp_file_dir + "fullburst_dict.pkl","rb")
-            self.fullburst_dict = pkl.load(f)
-            f.close()
-
-            self.init_RM = True
-            self.fine_RM = False
-            self.done_RM = False
-            #self.loaded = True
-            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load pkl data"
-            self.param.trigger('RMdata_init')
-        except Exception as e:
-            self.error = "From clicked_pkl_load(): " + str(e)
-        return
-
-    RMdata_init = param.Action(clicked_pkl_load,label="Initialize Data")
-
-
-    #function for saving rm data back to pickle files
-    def clicked_pkl_save(self):
-        try:
-            self.error = "Saving rm data to pkl files..."
-            t1 = time.time()
-            #write galactic and ionospheric rm
-            rm_dict = dict()
-            rm_dict['RM_gal'] = self.RM_gal
-            rm_dict['RM_galerr'] = self.RM_galerr
-            rm_dict['RM_ion'] = self.RM_ion
-            rm_dict['RM_ionerr'] = self.RM_ionerr
-            f = open(tmp_file_dir + "rm_vals.pkl","wb")
-            pkl.dump(rm_dict,f)
-            f.close()
-
-            #update comp dict
-            f = open(tmp_file_dir + "comp_dict.pkl","wb")
-            pkl.dump(self.comp_dict,f)
-            f.close()
-
-            #update full burst dict
-            f = open(tmp_file_dir + "fullburst_dict.pkl","wb")
-            pkl.dump(self.fullburst_dict,f)
-            f.close()
-
-            self.error = "Complete: " + str(np.around(time.time()-t1)) + " to save to pkl files"
-
-            self.param.trigger('RMdata_out')
-        except Exception as e:
-            self.error = "From clicked_pkl_load(): " + str(e)
-        return
-    RMdata_out = param.Action(clicked_pkl_save,label="Return to Pol Analysis")
-
-    #***VIEWING MODULE***#
-    def view(self):
-        try:
-            #use data from tmp files if ready flag is set
-            #if self.check_ready_flag() and (not self.loaded):
-            #    self.load_pkl_data()
-
-
-
-            #update trial RM
-            self.trial_RM = np.linspace(float(self.RMmin),float(self.RMmax),int(self.numRMtrials))
-            if self.RM1 != "":
-                self.trial_RM2 = np.linspace(float(self.RM1)-float(self.zoom_window),float(self.RM1)+float(self.zoom_window),int(self.numRMtrials_zoom))
-            if self.RM2zoom == "" or self.RMerr2zoom=="":
-                rm = np.nan
-                rmerr = np.nan
-            else:
-                rm = float(self.RM2zoom)
-                rmerr = float(self.RMerr2zoom)
-       
-            if self.frb_name != "":
-                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
-                self.datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+ self.ids + "_" + self.nickname + "/"
-            """
-            #get galactic rm
-            if self.calibrated_for_gal_ion_rm and (self.got_rm_gal==False):# and self.got_rm_ion):
-                self.gal_rm_panel()
-            if self.calibrated_for_gal_ion_rm and (self.got_rm_ion==False):
-                self.ion_rm_panel()
-            """
-            """
-            #get galactic rm
-            if self.calibrated_for_gal_ion_rm and (self.got_rm_gal==False):# and self.got_rm_ion):
-                
-                self.error = "Computing Galactic RM..." + str(self.got_rm_gal)
-                t1 = time.time()
-                self.RM_gal,self.RM_galerr = get_rm(radec=(self.RA,self.DEC),filename="/home/ubuntu/faraday2020v2.hdf5")
-                self.RM_gal_str = str(np.around(self.RM_gal,2))
-                self.RM_galerr_str = str(np.around(self.RM_galerr,2))
-                self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
-                self.got_rm_gal = True
-    
-            #get ionospheric rm
-            if self.calibrated_for_gal_ion_rm and (self.got_rm_ion==False):
-                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.fobj,self.datadir)
-                dir_list = os.listdir(self.datadir)
-                #self.error = site + " " +ion_file
-               
-                if ion_file not in dir_list:
-                    self.error = "To get ionospheric RM, download " + site + ", unzip, and place in directory " + self.datadir
-                else:
-                    self.error = "Computing Ionospheric RM..." + str(self.got_rm_ion)
-                    t1 = time.time()
-                    os.system(command)
-                    self.RM_ion,self.RM_ionerr = get_ion_rm(timeobs)
-                    self.RM_ion_str = str(np.around(self.RM_ion,2))
-                    self.RM_ionerr_str = str(np.around(self.RM_ionerr,2))
-                    self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute ion RM " + str(self.got_rm_ion) + str(self.got_rm_gal)
-                    self.got_rm_ion = True
-            elif self.got_rm_gal and self.got_rm_ion:
-                self.calibrated_for_gal_ion_rm = False
-                self.error = "all done " + str(self.calibrated_for_gal_ion_rm) + str(self.got_rm_gal) + str(self.got_rm_ion)
-            """
-            return RM_plot(self.RMsnrs1,self.trial_RM,self.RMsnrs1tools,self.trial_RM_tools,self.RMsnrs1zoom,self.trial_RM2,self.RMsnrs1tools_zoom,self.trial_RM_tools_zoom,self.RMsnrs2zoom,self.init_RM,self.fine_RM,self.done_RM,rm,rmerr)
-        except Exception as e:
-            self.error = "From view(): " + str(e) + " " + str(len(self.trial_RM2)) + " " + str(len(self.RMsnrs2zoom))
-            return
