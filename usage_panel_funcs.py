@@ -27,7 +27,7 @@ dedisp_usage_str = """
 pol_usage_str = """
     ### **Polarization Tab Usage**
 
-    *Functionality*: The polarization tab is an interface for computing polarization fractions, position angles, and rotation measures. The user can calibrate data from full Stokes filterbanks using previously generated Jones matrix solutions. RMs can be calculated for each component of the burst and applied independently, as well as for the full burst.
+    *Functionality*: The polarization tab is an interface for computing polarization fractions, position angles, polarized spectra, and polarized time series for FRBs. The user can calibrate data from full Stokes filterbanks using previously generated Jones matrix solutions. This analysis can be conducted concurrently with RM analysis by following the instructions in the **RM Tab Usage** section of this guide.
 
     *Procedure*
     
@@ -47,14 +47,10 @@ pol_usage_str = """
         * ***ibox***: base width of the burst component in 256 us samples prior to addition of left/right buffers; in general this corresponds to the 'ibox' parameter reported by Heimdall, but can be adjusted as needed here. 
         * ***Multipeaks***: select this if the burst component has multiple peaks. Red dashed vertical lines indicate the Full-Width at Half-Max (FWHM) of the burst component. If the component has multiple peaks, selecting 'Multipeaks' allows the left and right bounds to be set at the leftmost and rightmost peaks. Use the 'height' slider to move the horizontal dashed line to give the minimum height of the peak. **The polarization fraction will be computed as an average within the FWHM indicated by the chosen bounds. The PA will also only be displayed in this range, and its average value computed in this range**
         
-        Once weights have been tuned as desired, click 'Next'; the ideally weighted spectrum and PA for the first component will be displayed in the plot labelled 'Component #1', and its polarization fractions, signal-to-noise ratios, and average PA will be displayed in their respective output boxes on the left-hand side. If no RM analysis is desired, repeat the process for the remaining components.
+        Once weights have been tuned as desired, click 'Next'; the ideally weighted spectrum and PA for the first component will be displayed in the plot labelled 'Component #1', and its polarization fractions, signal-to-noise ratios, and average PA will be displayed in their respective output boxes on the left-hand side. If no RM analysis is desired, repeat the process for the remaining components. Otherwise, go to the section marked **RM Tab Usage** to begin RM analysis.
 
-    * **RM Analysis**: For a given burst component, the RM can be calculated by clicking the 'Proceed to RM Analysis' button in the top middle of the panel (this should be done *after* clicking 'Next'). The RM analysis panel computes the RM first on a coarse grid (Initial RM), then on a fine grid (Fine RM) of RM Trials. 
-        * The initial RM is computed and displayed by clicking 'Run'; this computes both Manual 1D RM synthesis and RM-Tools with RM Cleaning (https://github.com/CIRADA-Tools/RM-Tools/tree/master), displaying the results in the 'Initial RM' and 'Initial RM-Tools RM' boxes respectively. The coarse grid of RM trials is tuned by entering the 'Minimum Trial RM', 'Maximum Trial RM', and 'Number of Trial RMs' in their respective boxes (the trial RM axis is computed as np.linspace('Minimum Trial RM', 'Maximum Trial RM', 'Number of Trial RMs'). RM spectra from each method are plotted in the upper RM plot.
-        * The fin RM is computed and displayed by clicking 'Run' again; this uses Manual 1D RM synthesis, RM-Tools with RM Cleaning, and RM S/N Method to estimate the RM (see Sherman, et al. 2023 for details), displaying the results in the 'Fine RM Synthesis RM', 'Fine RM-Tools RM' and Fine S/N Method RM' boxes respectively. The fine grid of RM trials is tuned by entering the 'Number of Trial RMs (Fine)' and 'RM range above/below initial result' in their respective boxes (the trial RM axis is computed as np.linspace('Initial RM'-'RM range above/below initial result','Initial RM'+'RM range above/below initial result','Number of Trial RMs (Fine)')
-        * Click 'Return to Pol Analysis' when complete. To RM calibrate using the final RM result ('Fine S/N Method RM'), click 'RM Calibrate' and the spectrum, polarization fractions, signal-to-noise, and PA will be recomputed and displayed. Repeat the **Tune Ideal Filter Weights** and **RM Analysis** steps for each component in turn. Note the polarization, PA, S/N, RMs, and errors will be displayed in their respective boxes in the format **('first component', 'second component',...,'last component') 'full burst'**
 
-    * **Downsample in Frequency**: Once all burst components have been processed, click 'Done'. One can repeat the **Rm Analysis** step described above for the full burst using concatenated weights. Once all RM analysis is complete. The frequency spectra can be downsampled to maximized structure by adjusting the 'log2(n_f)' slider, defined as the log base 2 of the factor 'n_f' by which the frequency axis is downsampled (e.g. log2(n_f) = 0 gives channel bandwidth 30.5 kHz, log2(n_f) = 1 gives channel bandwidth 30.5x2 = 61.0 kHz). Click 'Done' when complete.
+    * **Downsample in Frequency**: Once all burst components have been processed, click 'Done'. One can repeat the **RM Analysis** step described below for the full burst using concatenated weights. Once all RM analysis is complete. The frequency spectra can be downsampled to maximized structure by adjusting the 'log2(n_f)' slider, defined as the log base 2 of the factor 'n_f' by which the frequency axis is downsampled (e.g. log2(n_f) = 0 gives channel bandwidth 30.5 kHz, log2(n_f) = 1 gives channel bandwidth 30.5x2 = 61.0 kHz). Click 'Done' when complete.
 
     *Exporting Plots*
 
@@ -66,7 +62,53 @@ pol_usage_str = """
 
     * **RM Calibrated Filterbanks**: After loading FRB data and RM calibrating **the full burst**, click 'Save RM Calibrated Filterbanks' to save filterbanks at he **current resolution**. RM calibrated filterbanks will be derotated to the RM derived for the full burst (i.e. not individual components), labelled "RMcal" and be output to the same directory as the uncalibrated filterbanks. RM calibrated filterbanks can be saved with or without polarization calibrating first, though it is recommended to polarization calibrate prior to running RM synthesis.
 
+    *Saving to DSA-110 RMTable and PolSpectra Databases*
+
+    * van Eck, et al. 2023 defines a standard table format for storing and sharing polarization and RM data. After all analysis (including RM analysis) is complete, an FRB can save to the DSA-110 database defined in this format by clicking "Add to DSA-110 Catalog". The RMTable and PolSpectra catalogs for the DSA-110 are located at h23:/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_RMTable_V1.fits and h23:/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_PolTable_V1.fits respectively. Further details on this format and accessing the data in these catalogs can be found at https://github.com/CIRADA-Tools/RMTable and https://github.com/CIRADA-Tools/PolSpectra .
+
     """
+
+RM_usage_str = """
+    ### **RM Tab Usage**
+
+    *Functionality*: The RM tab is an interface for computing rotation measures, as well as galactic and ionospheric contributions to RM. RMs can be calculated for each component of the burst and applied independently, as well as for the full burst, and applied to derotate on the polarization tab.
+   
+    *Pre-Analysis*: The RM tab is developed to work in tandem with the polarization tab, and therefore an FRB must first be loaded by following the procedure laid out above in the *Load Data* section. After choosing components and computing the polarization of the first component, click *Proceed to RM Synthesis* to save the currently chosen components data to a pickle file accessible to the RM tab. Finally switch to the RM tab and follow the procedure below to carry out RM analysis.
+
+    *Procedure*
+
+    * **Initialize Data**: Click the *Initialize Data* button to load FRB data for the component currently selected in the polarization tab. 
+
+    * **Run Initial RM Synthesis**: Initial RM Synthesis estimates the RM following the procedure in Brentjens, et al. 2005 on the time averaged 1D spectrum of the chosen FRB. The following parameters are defined in the *Initial RM Synthesis Settings* section of the second column and can be adjusted to tailor the experiment to a specific RM range and resolution:
+        * ***Minimum Trial RM (rad/m^2)***: sets lower limit on the range of RM trials 
+        * ***Maximum Trial RM (rad/m^2)***: sets upper limit on the range of RM trials
+        * ***Number of Trial RMs***: sets the number of RM trials within the specified range
+        After setting these parameters, click *Run* to begin synthesis. RM synthesis will be conducted using the following two methods:
+        * ***Custom RM Synthesis***: This is a manually implemented 1D RM synthesis algorithm which does not implement RM cleaning, but may use a higher resolution and arbitrarily centered range (i.e. the range of RM trials does not need to be centered on 0). The RM from this method will be displayed in the box labelled *Initial RM (rad/m^2)* with its error in the box below. The RM spectrum will be displayed in black in the upper plot.
+        * ***RM-Tools (RM-Clean)***: This runs the RM synthesis algorithm in the *RM-Tools* library (Purcell, et. al. 2020), which uses RM Clean to lessen the affect of sidelobes. More information about this method can be found at https://github.com/CIRADA-Tools/RM-Tools. The RM from this method will be displayed in the box labelled *Initial RM-Tools RM (rad/m^2)* with its error in the box below. The RM spectrum will be displayed in blue in the upper plot. Note that the trial RMs for RM-Tools must be centered on 0 and the specified range will be clipped as necessary to meet this requirement.
+
+    * **Run Fine RM Synthesis**: Fine RM synthesis further constrains the RM by conducting RM synthesis on a narrowed range of RM trials around the result estimated from Custom RM Synthesis in the previous step. The following parameters are defined in the *Fine RM Synthesis Settings* section of the second column and can be adjusted to tailor the experiment to a specific RM range and resolution:
+        * ***Number of Trial RMs (Fine)***: sets the number of RM trials within the narrowed range
+        * ***RM range above/below initial result (rad/m^2)***: sets the RM window around the initial estimate that will be 'zoomed in' on to do Fine Synthesis
+        After setting these parameters, click *Run* to begin fine synthesis. This will be conducted using the following three methods:
+        * ***Custom RM Synthesis***: Follows the same procedure as above on the narrowed RM trial region. The resulting RM will be displayed in the box labelled *Fine RM Synthesis RM (rad/m^2)* with its error in the box below. The RM spectrum will be displayed in blue in the bottom plot.
+        * ***RM-Tools (RM-Clean)***: Follows the same procedure as above on the narrowed RM trial region clipped such that it is centered on 0. *Note that due to memory constraints within RM-Tools, Fine RM-Tools will be skipped if the initial RM estimate is greater than 10^4 rad/m^2*. The resulting RM will be displayed in the box labelled *Fine RM-Tools RM (rad/m^2)* with its error in the box below. The RM spectrum will be displayed in black in the bottom plot if computed.
+        * ***S/N Method***: This is a manually implemented 2D RM synthesis algorithm which does not implement RM cleaning. This conducts the standard 1D RM synthesis at each time sample withing the FRB and maximizes the linear signal-to-noise (S/N) to estimate the RM. The resulting RM will be displayed in the box labelled *Fine S/N Method RM (rad/m^2)* with its error below. The RM spectrum displayed in gold in the bottom plot.
+
+
+    * **Save and Apply RM**: To save the RM computed for the current component, click *Return to Pol Analysis* (this will cache the RM data within a pickle file that can be accessed by the Polarization Tab). To derotate the FRB component the derived RM, return to the Polarization Tab and click *Retrieve RM Data* to pull from the pickle files. Then click *RM Calibrate*, which will derotate the spectrum of the current component and recompute polarization, S/N, and PA for the component. Make sure that the RM is applied before moving to the next component if it is considered significant.
+
+    * **Repeat for Other Components and Full Burst**: The process above can be repeated after moving to the next component. After all components have been analyzed and *Done* has been clicked, RM synthesis can be performed for the full burst by repeating the steps above. Clicking *RM Calibrate* at this stage will apply the full RM to both the full burst spectrum and time series.
+
+    * **Galactic RM Contribution**: Estimation of the Galactic contribution to RM along the FRB's line of sight is estimated using the Hutschenreuter, et al. 2020 galactic RM map. On the polarization tab, enter the FRB's RA and Declination in the boxes labelled *RA* and *DEC*. Click *Proceed to RM Synthesis* to cache these values, then switch to the RM tab. Click *Compute Galactic RM* in the second column, and the resulting galactic RM will be displayed in the box labelled *Galactic RM (rad/m^2)* with its error in the box below. Click *Return to Pol Analysis* to cache the data, and on the Polarization Tab, click *Retrieve RM Data* to save to the current dictionary (this will ensure that the galactic RM will be saved to any exported files).
+
+    * **Ionospheric RM Contribution**: Estimation of the Ionospheric contribution to RM along the FRB's line of sight at the observation epoch is estimated using **ionFR**, described in Sotomayor-Beltran, et al., 2013 (further information can be found at https://github.com/csobey/ionFR). On the polarization tab, enter the FRB's RA and Declination in the boxes labelled *RA* and *DEC*. Enter the Mean Julian Date (MJD) in the box labelled *MJD*. Click *Proceed to RM Synthesis* to cache these values, then switch to the RM tab. Click *Compute Ionospheric RM* in the second column; the software requires files pulled from the NASA CDDIS Database (cddis.nasa.gov/archive/gps/products/ionex). If the necessary file is already downloaded, the ionospheric RM will be calculated and displayed in the box labelled *Ionospheric RM (rad/m^2)* with its error in the box below. If not, follow the link given in the error output box to download the necessary file, unzip it, and move it to the directory listed in the error output box. If following the link brings you to a page that asks for a password instead of downloading the file, you can find the username and password in the file: h23:/media/ubuntu/ssd/sherman/code/.netrc. (*Contact Myles Sherman at msherman@caltech.edu if further assistance is needed*). After the downloaded and unzipped file has been moved to the correct directory, click *Compute Ionospheric RM* again and the ionospheric RM will be calculated and displayed in the box labelled *Ionospheric RM (rad/m^2)* with its error in the box below. Click *Return to Pol Analysis* to cache the data, and on the Polarization Tab, click *Retrieve RM Data* to save to the current dictionary (this will ensure that the ionospheric RM will be saved to any exported files).
+
+    *Exporting Plots*
+
+    * After computing the initial and fine RM, click *Export Summary Plot* in the second column of the RM Tab to export a pdf plot containing the RM spectra currently displayed.
+    """
+
 
 burstfit_usage_str = """
     ### **Burstfit Tab Usage**
