@@ -175,7 +175,7 @@ class dedisp_panel(param.Parameterized):
     error = param.String(default="",label="output/errors")
     ids = ""
     nickname = ""
-    ibeam = 0
+    ibeam = param.Integer(default=0,bounds=(0,250),label='ibeam')
     mjd = ""
 
 
@@ -224,69 +224,68 @@ class dedisp_panel(param.Parameterized):
 
     def load_FRB(self):
         try:
-            if self.error=="Loading FRB...":
-                self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+            #if self.error=="Loading FRB...":
+            self.error = "Loading FRB..."
+            self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+            self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
 
-                #first check that FRB already has a filterbank created
-                x=os.listdir("/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us")
-                FRB_list = []
-                for i in range(len(x)):
-                    if len(x[i]) >= 10 and x[i][10] == "_":
-                        FRB_list.append(x[i])
-                if self.frb_name not in FRB_list:
-                    #create filterbank if nonexistent
-                    self.error = "Creating initial filterbanks dedispersed to DM = " + str(self.DM) + " pc/cc..."
-                    t1 = time.time()
-                    command = "/media/ubuntu/ssd/sherman/code/run_beamformer_visibs_bfweightsupdate_sb.bash NA " + str(self.ids) + " "  + str(self.nickname) + " " + str(self.caldate) + " "  + str(self.ibeam) + " " + str(self.mjd) + " " + str(self.DM) #${datestrings[$i]} ${candnames[$i]} ${nicknames[$i]} ${dates[$i]} ${bms[$i]} ${mjds[$i]} ${dms[$i]}
-                    self.error = command
-                    os.system(command)
-                    
-                    self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to create initial filterbanks"
-
-                #self.error2 = str(self.I.shape)
-                self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
+            #first check that FRB already has a filterbank created
+            x=os.listdir("/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us")
+            FRB_list = []
+            for i in range(len(x)):
+                if len(x[i]) >= 10 and x[i][10] == "_":
+                    FRB_list.append(x[i])
+            if self.frb_name not in FRB_list:
+                #create filterbank if nonexistent
+                self.error = "Creating initial filterbanks dedispersed to DM = " + str(self.DM) + " pc/cc..."
                 t1 = time.time()
-                #self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
-                #self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
-                datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
-                #ibeam = 218
-                #caldate="22-12-18"
-                #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
-                #self.view()
-                (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
-                self.I_init = copy.deepcopy(self.I)
-                self.I_init_dmzero = copy.deepcopy(self.I)
-                #(self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
+                command = "/media/ubuntu/ssd/sherman/code/run_beamformer_visibs_bfweightsupdate_sb.bash NA " + str(self.ids) + " "  + str(self.nickname) + " " + str(self.caldate) + " "  + str(self.ibeam) + " " + str(self.mjd) + " " + str(self.DM) #${datestrings[$i]} ${candnames[$i]} ${nicknames[$i]} ${dates[$i]} ${bms[$i]} ${mjds[$i]} ${dms[$i]}
+                self.error = command
+                os.system(command)
+                    
+                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to create initial filterbanks"
 
-                self.I_t_init = (np.mean(self.I,axis=0) - np.mean(np.mean(self.I[:,:int(12000//self.n_t)],axis=0)))/np.std(np.mean(self.I[:,:int(12000//self.n_t)],axis=0))
+            #self.error2 = str(self.I.shape)
+            self.error = "Loading FRB predownsampled by " + str(self.n_t) + " in time, " + str(self.n_f) + " in frequency..."
+            t1 = time.time()
+            #self.ids = self.frb_name[:10]#"230307aaao"#"220207aabh"#"221029aado"
+            #self.nickname = self.frb_name[11:]#"phineas"#"zach"#"mifanshan"
+            datadir = "/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/"+self.ids + "_" + self.nickname + "/"
+            #ibeam = 218
+            #caldate="22-12-18"
+            #self.frb_name = "Loading " + ids + "_" + nickname + " ..."
+            #self.view()
+            (self.I,self.fobj,self.timeaxis,self.freq_axis_init,self.wav_axis_init) = dsapol.get_I_2D(datadir,self.ids + "_dev",20480,n_t=self.n_t,n_f=self.n_f,n_off=int(12000//self.n_t),sub_offpulse_mean=True,dtype=np.float16)
+            self.I_init = copy.deepcopy(self.I)
+            self.I_init_dmzero = copy.deepcopy(self.I)
+            #(self.I_t_init,self.Q_t_init,self.U_t_init,self.V_t_init) = dsapol.get_stokes_vs_time(self.I,self.Q,self.U,self.V,self.ibox,self.fobj.header.tsamp,self.n_t,n_off=int(12000//self.n_t),plot=False,show=True,normalize=True,buff=1,window=30)
 
-
-                #time.sleep(5)
-                self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
-                #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
-                #self.n_f_root = self.n_f
-                self.n_t_root = self.n_t
-                self.n_f_root = self.n_f
-
-
-
-                self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
-                self.n_f = 1
-                self.n_f_prev = 1
-                self.n_t = 1
-
-                self.I_t = np.nan*np.ones(len(self.I_t_init))
-                self.freq_axis = copy.deepcopy(self.freq_axis_init)
-                self.wav_axis = copy.deepcopy(self.wav_axis_init)
-
-                self.final_DM = self.DM
-                self.final_DM_str = str(np.around(self.final_DM,2))
+            self.I_t_init = (np.mean(self.I,axis=0) - np.mean(np.mean(self.I[:,:int(12000//self.n_t)],axis=0)))/np.std(np.mean(self.I[:,:int(12000//self.n_t)],axis=0))
+            #time.sleep(5)
+            self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to load data"
+            #self.frb_name = "Loaded " + ids + "_" + nickname + " ..."
+            #self.n_f_root = self.n_f
+            self.n_t_root = self.n_t
+            self.n_f_root = self.n_f
 
 
 
+            self.log_n_f = 0#param.Integer(default=0,bounds=(0,10),label=r'log2(n_f)')
+            self.n_f = 1
+            
+            self.n_f_prev = 1
+            self.n_t = 1
+            self.I_t = np.nan*np.ones(len(self.I_t_init))
+            self.freq_axis = copy.deepcopy(self.freq_axis_init)
+            self.wav_axis = copy.deepcopy(self.wav_axis_init)
 
-                self.loaded = True
+            self.final_DM = self.DM
+            self.final_DM_str = str(np.around(self.final_DM,2))
+
+
+
+
+            self.loaded = True
         except Exception as e:
             self.error = "From load_FRB(): " + str(e)
         return
@@ -328,7 +327,7 @@ class dedisp_panel(param.Parameterized):
             self.error = "From clicked_recompute(): " + str(e)
 
 
-
+    load_button = param.Action(load_FRB,label="Load FRB")
     applyb = param.Action(clicked_apply,label="Apply")
     recompute_filterbanks = param.Action(clicked_recompute,label="Re-Compute Filterbanks")
 
@@ -340,12 +339,12 @@ class dedisp_panel(param.Parameterized):
     def view(self):
         try:
             #self.error2 = str(self.intLs) + " " + str(self.intRs)
-            if self.error == "Loading FRB...":
+            #if self.error == "Loading FRB...":
                 #self.error = "Loading FRB..."
-                self.load_FRB()
+            #    self.load_FRB()
 
-            if self.error == "Calibrating FRB...":
-                self.cal_FRB()
+            #if self.error == "Calibrating FRB...":
+            #    self.cal_FRB()
 
             self.ddm = float(self.ddm_str)
             k_dm = 4.148808e3  # MHz^2 pc^-1 cm^3 ms, constant for dispersion
