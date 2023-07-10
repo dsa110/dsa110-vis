@@ -78,6 +78,8 @@ from rmtable import RMTable
 #testing with pol Table: https://github.com/CIRADA-Tools/PolSpectra/tree/master
 import polspectra
 
+import dsarp_interface
+
 def gauss_scint(x,bw,amp,off):
     return off + amp*np.exp(-np.log(2)*((x/bw)**2))
 
@@ -1181,6 +1183,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                 self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
                 self.comp_dict[self.curr_comp]["sigflag"] = False
+                self.comp_dict[self.curr_comp]["rm_applied"] = False
                 if self.multipeaks:
                     self.comp_dict[self.curr_comp]["height"] = self.height
                     self.comp_dict[self.curr_comp]["scaled_height"] = self.height*np.max(self.curr_weights)/np.max(self.I_t)
@@ -1458,6 +1461,7 @@ class pol_panel(param.Parameterized):
                     self.fullburst_dict["weights"] = self.curr_weights
                     self.fullburst_dict["multipeaks_all"] = multipeaks_all
                     self.fullburst_dict["sigflag"] = False
+                    self.fullburst_dict["rm_applied"] = False
                     self.fullburst_dict["intL"] = np.min(intL1)
                     self.fullburst_dict["intR"] = np.max(intR2)
 
@@ -1520,7 +1524,7 @@ class pol_panel(param.Parameterized):
                     self.comp_dict[self.curr_comp]["weights"] = self.curr_weights
                     self.comp_dict[self.curr_comp]["multipeaks"] = self.multipeaks
                     self.comp_dict[self.curr_comp]["sigflag"] = False
-
+                    self.comp_dict[self.curr_comp]["rm_applied"] = False
 
                     if self.multipeaks:
                         self.comp_dict[self.curr_comp]["height"] = self.height
@@ -1731,7 +1735,7 @@ class pol_panel(param.Parameterized):
                     self.fullburst_dict["V/I_err"] = sigma_C
                     self.fullburst_dict["V/I_snr"] = snr_C
                     self.fullburst_dict["I_snr"] = snr
-
+                    self.fullburst_dict["rm_applied"] = False
 
                     self.filt_weights_on = False
                     self.freq_samp_on = True
@@ -1919,6 +1923,92 @@ class pol_panel(param.Parameterized):
             self.error = "Transferring data between panels..."
             t1 = time.time()
 
+            
+            #add to RM table
+            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on:
+                curr_comp = np.max(list(self.comp_dict.keys()))
+                self.error = "Writing component " +str(curr_comp) + " to RMTable..."
+
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_RMTable(self.ids,curr_comp)
+
+                #if not in table, add normally
+                if tabidx == -1: 
+                    dsarp_interface.dsarp_addFRBcomp_RMTable(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps))
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    dsarp_interface.dsarp_removeFRBcomp_RMTable(self.ids)
+                    dsarp_interface.dsarp_addFRBcomp_RMTable(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),replace=True,replace_idx=tabidx)
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    dsarp_interface.dsarp_addFRBcomp_RMTable(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),replace=True,replace_idx=tabidx)
+                
+
+            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on):
+                curr_comp = -1
+                self.error = "Writing full burst component to RMTable..."
+
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_RMTable(self.ids,curr_comp)
+
+                #if not in table, add normally
+                if tabidx == -1:
+                    dsarp_interface.dsarp_addFRBfull_RMTable(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps))
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    dsarp_interface.dsarp_removeFRBcomp_RMTable(self.ids)
+                    dsarp_interface.dsarp_addFRBfull_RMTable(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),replace=True,replace_idx=tabidx)
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    dsarp_interface.dsarp_addFRBfull_RMTable(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),replace=True,replace_idx=tabidx)
+
+            #add to pre pol table
+            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on:
+                curr_comp = np.max(list(self.comp_dict.keys()))
+                self.error = "Writing component " +str(curr_comp) + " to PolSpectra Table..."
+                
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp)
+
+                #if not in table, add normally
+                if tabidx == -1:
+                    self.error = "Not in PolSpectra Table, appending entry..."
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,suff="pre")
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    self.error = "In PolSpectra Table but wrong number of components, replacing entry..."
+                    dsarp_interface.dsarp_removeFRBcomp_PolSpectrum(self.ids,suff="pre")
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    self.error = "In PolSpectra Table, updatig entry..."
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
+                self.error = "Done, proceeding..."
+            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on):
+                curr_comp = -1
+                self.error = "Writing full burst component to PolSpectra Table..."
+
+
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp)
+
+                #if not in table, add normally
+                if tabidx == -1:
+                    self.error = "Not in PolSpectra Table, appending entry..."
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,len(self.fixed_comps),suff="pre")
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    self.error = "In PolSpectra Table but wrong number of components, replacing entry..."
+                    dsarp_interface.dsarp_removeFRBcomp_PolSpectrum(self.ids,suff="pre")
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    self.error = "In PolSpectra Table, updatig entry..."
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
+                self.error = "Done, proceeding..."
+
+
+
 
 
             #write current data to pkl files
@@ -2020,7 +2110,7 @@ class pol_panel(param.Parameterized):
             self.error = "From clicked_link(): " + str(e)
             return
     
-    link_button = param.Action(clicked_link,label="Proceed to RM Synthesis")
+    link_button = param.Action(clicked_link,label="Update DSA-110 Catalog")
 
     #function for recovering rm data from pickle files
     def clicked_pkl_load(self):
@@ -2120,7 +2210,7 @@ class pol_panel(param.Parameterized):
                 self.fullburst_dict["V/I_err"] = sigma_C
                 self.fullburst_dict["V/I_snr"] = snr_C
                 self.fullburst_dict["I_snr"] = snr
-
+                self.fullburst_dict["rm_applied"] = True
 
 
 
@@ -2198,6 +2288,7 @@ class pol_panel(param.Parameterized):
                 self.comp_dict[curr_comp]["V/I_err"] = sigma_C
                 self.comp_dict[curr_comp]["V/I_snr"] = snr_C
                 self.comp_dict[curr_comp]["I_snr"] = snr
+                self.comp_dict[curr_comp]["rm_applied"] = True
 
                 #update displays
                 if curr_comp == 0 and len(self.fixed_comps) == 1:
