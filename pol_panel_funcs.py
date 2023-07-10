@@ -903,6 +903,7 @@ class pol_panel(param.Parameterized):
     RMTable_name = '/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_RMTable_V1.fits'
     PolSpectra_name = '/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_PolTable_V1.fits'
 
+    """
     def addtocatalog(self):
         try:
             #only do if finished
@@ -1134,7 +1135,7 @@ class pol_panel(param.Parameterized):
 
         except Exception as e:
             self.error = "From addtocatalog(): "  + str(e)
-
+    """
     #***COMPONENT SELECTION MODULE***#
     peak = int(15280)
     timestart = int(peak - (5e-3)/(32.7e-6))
@@ -1886,7 +1887,7 @@ class pol_panel(param.Parameterized):
     savefilRM_button = param.Action(savefilRM,label="Save RM Calibrated Filterbanks")
     savetxt_button = param.Action(savetxt,label="Export Text File Summary")
     savejson_button = param.Action(savejson,label="Save Data to JSON")
-    addtocatalog_button = param.Action(addtocatalog,label="Add to DSA-110 Catalog")
+    #addtocatalog_button = param.Action(addtocatalog,label="Add to DSA-110 Catalog")
 
 
     #polarization
@@ -1918,7 +1919,7 @@ class pol_panel(param.Parameterized):
 
     #***SAVING RM INTERMEDIATE DATA TO PKL FILES***#
     #link IQUV from panel1 to panel 2
-    def clicked_link(self):
+    def clicked_pkl_save(self):
         try:
             self.error = "Transferring data between panels..."
             t1 = time.time()
@@ -1963,9 +1964,9 @@ class pol_panel(param.Parameterized):
                     dsarp_interface.dsarp_addFRBfull_RMTable(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),replace=True,replace_idx=tabidx)
 
             #add to pre pol table
-            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on:
+            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on and not self.comp_dict[np.max(list(self.comp_dict.keys()))]["rm_applied"]:
                 curr_comp = np.max(list(self.comp_dict.keys()))
-                self.error = "Writing component " +str(curr_comp) + " to PolSpectra Table..."
+                self.error = "Writing component " +str(curr_comp) + " to pre PolSpectra Table..."
                 
                 #check if in table
                 tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp)
@@ -1984,9 +1985,9 @@ class pol_panel(param.Parameterized):
                     self.error = "In PolSpectra Table, updatig entry..."
                     dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
                 self.error = "Done, proceeding..."
-            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on):
+            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on) and not self.fullburst_dict["rm_applied"]:
                 curr_comp = -1
-                self.error = "Writing full burst component to PolSpectra Table..."
+                self.error = "Writing full burst component to pre PolSpectra Table..."
 
 
                 #check if in table
@@ -2007,8 +2008,52 @@ class pol_panel(param.Parameterized):
                     dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="pre")
                 self.error = "Done, proceeding..."
 
+            #add to post-pol table if applied RM
+            if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on and self.comp_dict[np.max(list(self.comp_dict.keys()))]["rm_applied"]:
+                curr_comp = np.max(list(self.comp_dict.keys()))
+                self.error = "Writing component " +str(curr_comp) + " to post PolSpectra Table..."
+
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp,suff="post")
+
+                #if not in table, add normally
+                if tabidx == -1:
+                    self.error = "Not in PolSpectra Table, appending entry..."
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,suff="post")
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    self.error = "In PolSpectra Table but wrong number of components, replacing entry..."
+                    dsarp_interface.dsarp_removeFRBcomp_PolSpectrum(self.ids,suff="post")
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="post")
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    self.error = "In PolSpectra Table, updatig entry..."
+                    dsarp_interface.dsarp_addFRBcomp_PolSpectrum(self.ids,self.nickname,self.datadir,self.comp_dict,curr_comp,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="post")
+                self.error = "Done, proceeding..."
 
 
+            elif (len(self.comp_dict.keys()) == len(self.fixed_comps)) and (not self.filt_weights_on) and self.fullburst_dict["rm_applied"]:
+                curr_comp = -1
+                self.error = "Writing full burst component to post PolSpectra Table..."
+
+
+                #check if in table
+                tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp,suff="post")
+
+                #if not in table, add normally
+                if tabidx == -1:
+                    self.error = "Not in PolSpectra Table, appending entry..."
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,len(self.fixed_comps),suff="post")
+                #if in table, but wrong number of components, remove everything and add
+                elif tabidx != -1 and ncomps != len(self.fixed_comps):
+                    self.error = "In PolSpectra Table but wrong number of components, replacing entry..."
+                    dsarp_interface.dsarp_removeFRBcomp_PolSpectrum(self.ids,suff="post")
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="post")
+                #if in table and correct number of components, update values in table
+                elif tabidx != -1 and ncomps == len(self.fixed_comps):
+                    self.error = "In PolSpectra Table, updatig entry..."
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,replace=True,replace_idx=tabidx,suff="post")
+                self.error = "Done, proceeding..."
 
 
             #write current data to pkl files
@@ -2019,7 +2064,8 @@ class pol_panel(param.Parameterized):
             f = open(tmp_file_dir + "dyn_spectra.pkl","wb")
             pkl.dump(dyn_spectra_dict,f)
             f.close()
-
+            
+            """
             parameters_dict = dict()
             if (len(self.comp_dict.keys()) <= len(self.fixed_comps)) and (len(self.comp_dict.keys()) > 0) and self.filt_weights_on:
                 curr_comp = np.max(list(self.comp_dict.keys()))
@@ -2102,7 +2148,7 @@ class pol_panel(param.Parameterized):
             f = open(tmp_file_dir + "ready.pkl","wb")
             pkl.dump(ready_dict,f)
             f.close()
-
+            """
             self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to transfer data"
             self.param.trigger('link_button')
             return
@@ -2110,13 +2156,62 @@ class pol_panel(param.Parameterized):
             self.error = "From clicked_link(): " + str(e)
             return
     
-    link_button = param.Action(clicked_link,label="Update DSA-110 Catalog")
+    link_button = param.Action(clicked_pkl_save,label="Update DSA-110 Catalog")
 
     #function for recovering rm data from pickle files
     def clicked_pkl_load(self):
         try:
             self.error = "Retrieving rm data to pkl files..."
             t1 = time.time()
+            
+
+            #setup comp dict and fullburst dict with data from catalog
+            if self.freq_samp_on: #note, only getting full burst dict in this case...
+                self.fullburst_dict,tmp,parameters_dict,spectra_dict = dsarp_interface.dsarp_getFRBfull(self.ids)
+            if self.filt_weights_on and ( self.curr_comp < len(self.fixed_comps)):
+                self.comp_dict,parameters_dict,spectra_dict = dsarp_interface.dsarp_getFRBcomp(self.ids,self.curr_comp,np.arange(self.curr_comp+1))
+
+
+            #get dynamic spectra
+            #f = open(tmp_file_dir + "dyn_spectra.pkl","rb")
+            #dyn_spectra_dict = pkl.load(f)
+            #f.close()
+            #self.I = dyn_spectra_dict["I"]
+            #self.Q = dyn_spectra_dict["Q"]
+            #self.U = dyn_spectra_dict["U"]
+            #self.V = dyn_spectra_dict["V"]
+
+            #get 1D spectra
+            #f = open(tmp_file_dir + "1D_spectra.pkl","rb")
+            #spectra_dict = pkl.load(f)
+            #f.close()
+            #self.I_f = spectra_dict["I_f"]
+            #self.Q_f = spectra_dict["Q_f"]
+            #self.U_f = spectra_dict["U_f"]
+            #self.V_f = spectra_dict["V_f"]
+            #self.freq_test = spectra_dict["freq_test"]
+
+
+            #get parameters
+            #f = open(tmp_file_dir + "parameters.pkl","rb")
+            #parameters_dict = pkl.load(f)
+            #f.close()
+            """
+            self.curr_weights = parameters_dict["curr_weights"]
+            self.n_t = parameters_dict["n_t"]
+            self.n_f = parameters_dict["n_f"]
+            self.curr_comp = parameters_dict["curr_comp"]
+            self.ibox = parameters_dict["ibox"]
+            self.tsamp = parameters_dict["tsamp"]
+            self.nickname = parameters_dict["nickname"]
+            self.ids = parameters_dict["ids"]
+            self.datadir = parameters_dict["datadir"]
+            self.RA = parameters_dict["RA"]
+            self.DEC = parameters_dict["DEC"]
+            self.MJD = parameters_dict["MJD"]
+            self.frb_name = parameters_dict["frb_name"]
+            """
+            """
             #write galactic and ionospheric rm
             f = open(tmp_file_dir + "rm_vals.pkl","rb")
             rm_dict = pkl.load(f)
@@ -2135,14 +2230,14 @@ class pol_panel(param.Parameterized):
             f = open(tmp_file_dir + "fullburst_dict.pkl","rb")
             self.fullburst_dict = pkl.load(f)
             f.close()
-
+            """
             self.error = "Complete: " + str(np.around(time.time()-t1)) + " s to get RM from pkl files"
 
             self.param.trigger('RMdata_init')
         except Exception as e:
             self.error = "From clicked_pkl_load(): " + str(e)
         return
-    RMdata_init = param.Action(clicked_pkl_load,label="Retrieve RM Data")
+    RMdata_init = param.Action(clicked_pkl_load,label="Load RM from DSA-110 Catalog")
 
 
 
@@ -2152,12 +2247,19 @@ class pol_panel(param.Parameterized):
 
         try:
             #get current component
+            """
             f = open(tmp_file_dir + "parameters.pkl","rb")
             parameters_dict = pkl.load(f)
             f.close()
             if "curr_comp" not in parameters_dict.keys():
                 return
             curr_comp = parameters_dict["curr_comp"]
+            """
+            if self.filt_weights_on and ( self.curr_comp <= len(self.fixed_comps)-1):
+                curr_comp = self.curr_comp
+            elif self.freq_samp_on:
+                curr_comp = -1
+
 
             if curr_comp == -1:
                 if "RM2zoom" in self.fullburst_dict.keys():

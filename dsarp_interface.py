@@ -255,7 +255,7 @@ def dsarp_addFRBcomp_RMTable(candname,nickname,datadir,comp_dict,comp_num,RA,DEC
             #rmtable['trial_RM_tools_zoom'][rowidx] = comp_dict[comp_num]['trial_RM_tools_zoom']
 
         rmtable['RM2zoom'][rowidx] = comp_dict[comp_num]['RM2zoom']
-        rmtable['RM2errzoom'][rowidx] = comp_dict[comp_num]['RM2errzoom']
+        rmtable['RMerr2zoom'][rowidx] = comp_dict[comp_num]['RMerr2zoom']
         #rmtable['RMsnrs2zoom'][rowidx] = comp_dict[comp_num]['RMsnrs2zoom']
         rmtable['RM_FWHM'][rowidx] = comp_dict[comp_num]['RM_FWHM']
 
@@ -665,7 +665,7 @@ def dsarp_addFRBfull_RMTable(candname,nickname,datadir,fullburst_dict,RA,DEC,fre
             #rmtable['trial_RM_tools_zoom'][rowidx] = fullburst_dict['trial_RM_tools_zoom']
 
         rmtable['RM2zoom'][rowidx] = fullburst_dict['RM2zoom']
-        rmtable['RM2errzoom'][rowidx] = fullburst_dict['RM2errzoom']
+        rmtable['RMerr2zoom'][rowidx] = fullburst_dict['RMerr2zoom']
         #rmtable['RMsnrs2zoom'][rowidx] = fullburst_dict['RMsnrs2zoom']
         rmtable['RM_FWHM'][rowidx] = fullburst_dict['RM_FWHM']
 
@@ -840,7 +840,7 @@ def dsarp_getFRBfull(candname,suff="pre"):
     #fullburst_dict["trial_RM_tools_zoom"] = rmtable["trial_RM_tools_zoom"][tabidx_rmtable]
 
     fullburst_dict["RM2zoom"] = rmtable["RM2zoom"][tabidx_rmtable]
-    fullburst_dict["RM2errzoom"] = rmtable["RM2errzoom"][tabidx_rmtable]
+    fullburst_dict["RMerr2zoom"] = rmtable["RMerr2zoom"][tabidx_rmtable]
     #fullburst_dict["RMsnrs2zoom"] = rmtable["RMsnrs2zoom"][tabidx_rmtable]
     fullburst_dict["RM_FWHM"] = rmtable["RM_FWHM"][tabidx_rmtable]
     
@@ -1067,7 +1067,7 @@ def dsarp_getFRBcomp(candname,curr_comp,all_comp_nums,suff="pre"):
         #comp_dict[comp_num]["trial_RM_tools_zoom"] = rmtable["trial_RM_tools_zoom"][tabidx_rmtable]
 
         comp_dict[comp_num]["RM2zoom"] = rmtable["RM2zoom"][tabidx_rmtable]
-        comp_dict[comp_num]["RM2errzoom"] = rmtable["RM2errzoom"][tabidx_rmtable]
+        comp_dict[comp_num]["RMerr2zoom"] = rmtable["RMerr2zoom"][tabidx_rmtable]
         #comp_dict[comp_num]["RMsnrs2zoom"] = rmtable["RMsnrs2zoom"][tabidx_rmtable]
         comp_dict[comp_num]["RM_FWHM"] = rmtable["RM_FWHM"][tabidx_rmtable]
 

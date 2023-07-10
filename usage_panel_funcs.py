@@ -64,8 +64,14 @@ pol_usage_str = """
 
     *Saving to DSA-110 RMTable and PolSpectra Databases*
 
-    * van Eck, et al. 2023 defines a standard table format for storing and sharing polarization and RM data. After all analysis (including RM analysis) is complete, an FRB can save to the DSA-110 database defined in this format by clicking "Add to DSA-110 Catalog". The RMTable and PolSpectra catalogs for the DSA-110 are located at h23:/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_RMTable_V1.fits and h23:/media/ubuntu/ssd/sherman/scratch_weights_update_2022-06-03_32-7us/DSA110_PolTable_V1.fits respectively. Further details on this format and accessing the data in these catalogs can be found at https://github.com/CIRADA-Tools/RMTable and https://github.com/CIRADA-Tools/PolSpectra .
-
+    * van Eck, et al. 2023 defines a standard table format for storing and sharing polarization and RM data. After all analysis (including RM analysis) is complete, an FRB can save to the DSA-110 database defined in this format by clicking "Update DSA-110 Catalog". The DSA110 catalogs are stored in 3 separate files located in the directory h23:/media/ubuntu/ssd/sherman/code/RM_tmp_files/:
+        * **DSA110_PolTable_PreRMcal.fits**  
+        * **DSA110_PolTable_PostRMcal.fits**  
+        * **DSA110_RMTable.fits**
+    * Data will be saved to each file depending on the processing stage at which "Update DSA-110 Catalog" is clicked. If clicked after computing the initial non-RM-calibrated polarization for a given component (or full burst), the weight parameters and spectra will be saved to **DSA110_RMTable.fits** and **DSA110_PolTable_PreRMcal.fits** respectively. If the data is RM-calibrated as described below, the spectra will instead be saved to **DSA110_PolTable_PostRMcal.fits** . 
+    * To RM calibrate using previously computed rotation measures stored in the DSA-110 catalog, click "Load RM from DSA-110 Catalog" after computing the polarization instead of following the RM analysis steps. 
+    * Further details on this format and accessing the data in these catalogs can be found at https://github.com/CIRADA-Tools/RMTable and https://github.com/CIRADA-Tools/PolSpectra .
+    
     """
 
 RM_usage_str = """
@@ -73,11 +79,11 @@ RM_usage_str = """
 
     *Functionality*: The RM tab is an interface for computing rotation measures, as well as galactic and ionospheric contributions to RM. RMs can be calculated for each component of the burst and applied independently, as well as for the full burst, and applied to derotate on the polarization tab.
    
-    *Pre-Analysis*: The RM tab is developed to work in tandem with the polarization tab, and therefore an FRB must first be loaded by following the procedure laid out above in the *Load Data* section. After choosing components and computing the polarization of the first component, click *Proceed to RM Synthesis* to save the currently chosen components data to a pickle file accessible to the RM tab. Finally switch to the RM tab and follow the procedure below to carry out RM analysis.
+    *Pre-Analysis*: The RM tab is developed to work in tandem with the polarization tab, and therefore an FRB must first be loaded by following the procedure laid out above in the *Load Data* section. After choosing components and computing the polarization of the first component, click "Update DSA-110 Catalog" to save the currently chosen component's data to the DSA catalog described above. The RM Tab will pull data from these catalogs for analysis. Then switch to the RM tab and follow the procedure below to carry out RM analysis.
 
     *Procedure*
 
-    * **Initialize Data**: Click the *Initialize Data* button to load FRB data for the component currently selected in the polarization tab. 
+    * **Initialize Data**: Enter the candidate name (e.g. 20230120aaab) for the FRB being analyzed in the box labelled "FRB candname". Enter the number of the desired component (starting at 0 for the first component) in the box labelled "Component Number". Click the *Initialize Data* button to load FRB data. To analyze the full burst rather than a single component, check the box labelled "Fullburst bool" and enter -1 as the "Component Number"
 
     * **Run Initial RM Synthesis**: Initial RM Synthesis estimates the RM following the procedure in Brentjens, et al. 2005 on the time averaged 1D spectrum of the chosen FRB. The following parameters are defined in the *Initial RM Synthesis Settings* section of the second column and can be adjusted to tailor the experiment to a specific RM range and resolution:
         * ***Minimum Trial RM (rad/m^2)***: sets lower limit on the range of RM trials 
@@ -96,7 +102,7 @@ RM_usage_str = """
         * ***S/N Method***: This is a manually implemented 2D RM synthesis algorithm which does not implement RM cleaning. This conducts the standard 1D RM synthesis at each time sample withing the FRB and maximizes the linear signal-to-noise (S/N) to estimate the RM. The resulting RM will be displayed in the box labelled *Fine S/N Method RM (rad/m^2)* with its error below. The RM spectrum displayed in gold in the bottom plot.
 
 
-    * **Save and Apply RM**: To save the RM computed for the current component, click *Return to Pol Analysis* (this will cache the RM data within a pickle file that can be accessed by the Polarization Tab). To derotate the FRB component the derived RM, return to the Polarization Tab and click *Retrieve RM Data* to pull from the pickle files. Then click *RM Calibrate*, which will derotate the spectrum of the current component and recompute polarization, S/N, and PA for the component. Make sure that the RM is applied before moving to the next component if it is considered significant.
+    * **Save and Apply RM**: To save the RM computed for the current component to the DSA-110 RMTable catalog, click *Update DSA-110 Catalog*. To derotate the FRB component the derived RM, return to the Polarization Tab and click *Load RM from DSA-110 Catalog*, then click *RM Calibrate*, which will derotate the spectrum of the current component and recompute polarization, S/N, and PA for the component. Make sure that the RM is applied before moving to the next component if it is considered significant.
 
     * **Repeat for Other Components and Full Burst**: The process above can be repeated after moving to the next component. After all components have been analyzed and *Done* has been clicked, RM synthesis can be performed for the full burst by repeating the steps above. Clicking *RM Calibrate* at this stage will apply the full RM to both the full burst spectrum and time series.
 
