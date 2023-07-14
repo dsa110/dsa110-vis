@@ -148,7 +148,7 @@ def L_sigma(Q,U,timestart,timestop,plot=False,weighted=False,I_w_t_filt=None):
 
 
 
-def command_ionRM(RA,DEC,MJD,datadir,Lat=37.23,Lon=-118.2951):
+def command_ionRM(RA,DEC,MJD,datadir,Lat=37.23,Lon=-118.2951,ionFR_ext="codg"):
 
     #get coordinates
     c = SkyCoord(ra=RA*u.degree, dec=DEC*u.degree)
@@ -174,7 +174,7 @@ def command_ionRM(RA,DEC,MJD,datadir,Lat=37.23,Lon=-118.2951):
 
     #file_needed = os.system("python ionFR-master2/url_download.py -d " + day + " -t codg")
 
-    output = subprocess.Popen(["python", "ionFR-master2/url_download.py", "-d" , str(day), "-t", "c1pg"], stdout=subprocess.PIPE ).communicate()[0]
+    output = subprocess.Popen(["python", "ionFR-master2/url_download.py", "-d" , str(day), "-t", ionFR_ext], stdout=subprocess.PIPE ).communicate()[0]
     p = output.decode()
     site = p[14:len(p)-p[::-1][1:].index('\n')-2]
     file_needed = p[len(p)-p[::-1][1:].index('\n')-1:-3] 
@@ -335,6 +335,7 @@ class RM_panel(param.Parameterized):
     MJD = 0
 
     RM_FWHM = 0.0
+    ionFR_ext = param.String(default="codg",label="ionFR File Extension")
 
     loaded = False
     sigflag = param.Boolean(False,label="RM Significant?")
@@ -759,7 +760,7 @@ class RM_panel(param.Parameterized):
             else:
                 self.error = "Getting ionospheric RM command..."
                 t1 = time.time()
-                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.MJD,self.datadir)
+                site,ion_file,command,timeobs = command_ionRM(self.RA,self.DEC,self.MJD,self.datadir,ionFR_ext=self.ionFR_ext)
                 dir_list = os.listdir(self.datadir)
 
                 if ion_file not in dir_list:
