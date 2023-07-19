@@ -566,6 +566,7 @@ class pol_panel(param.Parameterized):
 
                 self.error = "Complete: " + str(np.around(time.time()-t1,2)) + " s to calibrate data"
                 self.calibrated = True
+                self.param.trigger('cal_button')
         except Exception as e:
             self.error = "From cal_FRB(): " + str(e)
         return
@@ -1992,11 +1993,11 @@ class pol_panel(param.Parameterized):
 
                 #check if in table
                 tabidx,ncomps = dsarp_interface.dsarp_FRBinTable_PolSpectrum(self.ids,curr_comp)
-
+                self.error2 = "tabidx,ncomps: " + str(tabidx) + " " + str(ncomps)
                 #if not in table, add normally
                 if tabidx == -1:
                     self.error = "Not in PolSpectra Table, appending entry..."
-                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,len(self.fixed_comps),suff="pre")
+                    dsarp_interface.dsarp_addFRBfull_PolSpectrum(self.ids,self.nickname,self.datadir,self.fullburst_dict,self.RA,self.DEC,self.freq_test_init,self.MJD,len(self.fixed_comps),self.n_t,self.n_f,self.fobj.header.tsamp,suff="pre")
                 #if in table, but wrong number of components, remove everything and add
                 elif tabidx != -1 and ncomps != len(self.fixed_comps):
                     self.error = "In PolSpectra Table but wrong number of components, replacing entry..."
