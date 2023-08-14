@@ -685,8 +685,8 @@ def dsarp_addFRBfull_RMTable(candname,nickname,datadir,fullburst_dict,RA,DEC,fre
         rmtable['fracpol_err'][rowidx] = fullburst_dict["T/I_pre_err"]            
         rmtable['Lfracpol'][rowidx] = fullburst_dict["L/I_pre"]
         rmtable['Lfracpol_err'][rowidx] = fullburst_dict["L/I_pre_err"]
-        rmtable['Tsnr'][rowidx] = comp_dict[comp_num]["T/I_pre_snr"]
-        rmtable['Lsnr'][rowidx] = comp_dict[comp_num]["L/I_pre_snr"]
+        rmtable['Tsnr'][rowidx] = fullburst_dict[comp_num]["T/I_pre_snr"]
+        rmtable['Lsnr'][rowidx] = fullburst_dict[comp_num]["L/I_pre_snr"]
     
     rmtable.write(RMTable_name,overwrite=True)
 
@@ -874,8 +874,8 @@ def dsarp_getFRBfull(candname,suff="pre"):
     parameters_dict["nickname"] = spectrumtable["nickname"][tabidx_pspectra]
     parameters_dict["ids"] = spectrumtable["candname"][tabidx_pspectra]
     parameters_dict["datadir"] = spectrumtable["datadir"][tabidx_pspectra]
-    parameters_dict["RA"] = spectrumtable["dec"][tabidx_pspectra]
-    parameters_dict["DEC"] = spectrumtable["ra"][tabidx_pspectra]
+    parameters_dict["RA"] = spectrumtable["ra"][tabidx_pspectra]
+    parameters_dict["DEC"] = spectrumtable["dec"][tabidx_pspectra]
     parameters_dict["MJD"] = spectrumtable["mjd"][tabidx_pspectra]
     parameters_dict["frb_name"] = spectrumtable["candname"][tabidx_pspectra] + "_" + spectrumtable["nickname"][tabidx_pspectra]
 
@@ -948,8 +948,8 @@ def dsarp_getFRBcomp(candname,curr_comp,all_comp_nums,suff="pre"):
         parameters_dict["nickname"] = spectrumtable["nickname"][tabidx_pspectra]
         parameters_dict["ids"] = spectrumtable["candname"][tabidx_pspectra]
         parameters_dict["datadir"] = spectrumtable["datadir"][tabidx_pspectra]
-        parameters_dict["RA"] = spectrumtable["dec"][tabidx_pspectra]
-        parameters_dict["DEC"] = spectrumtable["ra"][tabidx_pspectra]
+        parameters_dict["RA"] = spectrumtable["ra"][tabidx_pspectra]
+        parameters_dict["DEC"] = spectrumtable["dec"][tabidx_pspectra]
         parameters_dict["MJD"] = spectrumtable["mjd"][tabidx_pspectra]
         parameters_dict["frb_name"] = spectrumtable["candname"][tabidx_pspectra] + "_" + spectrumtable["nickname"][tabidx_pspectra]
 

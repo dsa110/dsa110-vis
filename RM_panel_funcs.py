@@ -747,7 +747,7 @@ class RM_panel(param.Parameterized):
             self.error = "Completed: " + str(np.around(time.time()-t1,2)) + " s to compute galactic RM"
             self.param.trigger('galrm')
         except Exception as e:
-            self.error = "From clicked_galrm(): " + str(e)
+            self.error = str(self.RA) + " " + str(self.DEC) + "From clicked_galrm(): " + str(e)
             
         return
 
