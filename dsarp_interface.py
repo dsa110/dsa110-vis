@@ -261,12 +261,12 @@ def dsarp_addFRBcomp_RMTable(candname,nickname,datadir,comp_dict,comp_num,RA,DEC
 
         rmtable['sigflag'][rowidx] = comp_dict[comp_num]['sigflag']
         rmtable['rm_applied'][rowidx] = comp_dict[comp_num]['rm_applied']
-        if 'RM_ion' in comp_dict[comp_num].keys():
-            rmtable['RM_ion'][rowidx] = comp_dict[comp_num]['RM_ion']
-            rmtable['RM_ionerr'][rowidx] = comp_dict[comp_num]['RM_ionerr']
-        if 'RM_gal' in comp_dict[comp_num].keys():
-            rmtable['RM_gal'][rowidx] = comp_dict[comp_num]['RM_gal']
-            rmtable['RM_galerr'][rowidx] = comp_dict[comp_num]['RM_galerr']
+    if 'RM_ion' in comp_dict[comp_num].keys():
+        rmtable['RM_ion'][rowidx] = comp_dict[comp_num]['RM_ion']
+        rmtable['RM_ionerr'][rowidx] = comp_dict[comp_num]['RM_ionerr']
+    if 'RM_gal' in comp_dict[comp_num].keys():
+        rmtable['RM_gal'][rowidx] = comp_dict[comp_num]['RM_gal']
+        rmtable['RM_galerr'][rowidx] = comp_dict[comp_num]['RM_galerr']
 
     else:
         rmtable['fracpol'][rowidx] = comp_dict[comp_num]["T/I_pre"]
@@ -625,7 +625,9 @@ def dsarp_addFRBfull_RMTable(candname,nickname,datadir,fullburst_dict,RA,DEC,fre
     rmtable['int_time'][rowidx] = 20480*32.7e-6
     rmtable['epoch'][rowidx] = MJD
     rmtable['candname'][rowidx] = candname
-
+    rmtable['snr'][rowidx] = fullburst_dict["I_snr"]
+    rmtable['Vsnr'][rowidx] = fullburst_dict["V/I_snr"]
+    
     if fullburst_dict['sigflag']:
         rmtable['rm'][rowidx] = fullburst_dict["RM2zoom"]            
         rmtable['rm_err'][rowidx] = fullburst_dict["RMerr2zoom"]            
@@ -671,19 +673,21 @@ def dsarp_addFRBfull_RMTable(candname,nickname,datadir,fullburst_dict,RA,DEC,fre
 
         rmtable['sigflag'][rowidx] = fullburst_dict['sigflag']
         rmtable['rm_applied'][rowidx] = fullburst_dict['rm_applied']
-        if 'RM_ion' in fullburst_dict.keys():
-            rmtable['RM_ion'][rowidx] = fullburst_dict['RM_ion']
-            rmtable['RM_ionerr'][rowidx] = fullburst_dict['RM_ionerr']
-        if 'RM_gal' in fullburst_dict.keys():
-            rmtable['RM_gal'][rowidx] = fullburst_dict['RM_gal']
-            rmtable['RM_galerr'][rowidx] = fullburst_dict['RM_galerr']
+    if 'RM_ion' in fullburst_dict.keys():
+        rmtable['RM_ion'][rowidx] = fullburst_dict['RM_ion']
+        rmtable['RM_ionerr'][rowidx] = fullburst_dict['RM_ionerr']
+    if 'RM_gal' in fullburst_dict.keys():
+        rmtable['RM_gal'][rowidx] = fullburst_dict['RM_gal']
+        rmtable['RM_galerr'][rowidx] = fullburst_dict['RM_galerr']
 
     else:                
         rmtable['fracpol'][rowidx] = fullburst_dict["T/I_pre"]            
         rmtable['fracpol_err'][rowidx] = fullburst_dict["T/I_pre_err"]            
         rmtable['Lfracpol'][rowidx] = fullburst_dict["L/I_pre"]
         rmtable['Lfracpol_err'][rowidx] = fullburst_dict["L/I_pre_err"]
-
+        rmtable['Tsnr'][rowidx] = comp_dict[comp_num]["T/I_pre_snr"]
+        rmtable['Lsnr'][rowidx] = comp_dict[comp_num]["L/I_pre_snr"]
+    
     rmtable.write(RMTable_name,overwrite=True)
 
     return

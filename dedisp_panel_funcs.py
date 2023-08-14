@@ -173,10 +173,11 @@ class dedisp_panel(param.Parameterized):
     frb_name = param.String(default="")
     caldate = param.String(default="")
     error = param.String(default="",label="output/errors")
+    error2 = param.String(default="",label="tmp")
     ids = ""
     nickname = ""
     ibeam = param.Integer(default=0,bounds=(0,250),label='ibeam')
-    mjd = ""
+    mjd = param.String(default="")
 
 
     I_init_dmzero = np.zeros((20480,6144))
@@ -187,11 +188,11 @@ class dedisp_panel(param.Parameterized):
 
 
     fobj = None#fobj#None
-    timeaxis = np.zeros(20480)#timeaxis#np.zeros(20480)
-    freq_axis_init = np.zeros(6144)
-    freq_axis = np.zeros(6144)
-    wav_axis_init = np.zeros(6144)
-    wav_axis = np.zeros(6144)
+    timeaxis = np.ones(20480)#timeaxis#np.zeros(20480)
+    freq_axis_init = np.ones(6144)
+    freq_axis = np.ones(6144)
+    wav_axis_init = np.ones(6144)
+    wav_axis = np.ones(6144)
 
 
     n_t_root = 1
@@ -212,6 +213,7 @@ class dedisp_panel(param.Parameterized):
     ddm = 0
     ddm_prev = 0
     DM = 0
+    DM_str = param.String(default="0",label="Input DM (pc/cc)")
     final_DM = 0
     final_DM_str = param.String(default="0",label="Final DM (pc/cc)")
     ddmdelay = 0
@@ -345,7 +347,7 @@ class dedisp_panel(param.Parameterized):
 
             #if self.error == "Calibrating FRB...":
             #    self.cal_FRB()
-
+            self.DM = float(self.DM_str)
             self.ddm = float(self.ddm_str)
             k_dm = 4.148808e3  # MHz^2 pc^-1 cm^3 ms, constant for dispersion
             self.ddmdelay = -1 * self.ddm * k_dm * (1/(self.freq_axis[-1] ** 2) - 1/(self.freq_axis[0] ** 2)) #ms
@@ -378,5 +380,7 @@ class dedisp_panel(param.Parameterized):
 
             return dedisp_plot(self.I,self.I_t,self.n_t,self.n_f,window=self.window,perc=self.perc,n_t_root=self.n_t_root,n_f_root=self.n_f_root)
         except Exception as e:
-            self.error = "From view3(): " + str(e)
+            self.error = "From view3(): " + str(e) + str(self.I_t.shape) + " " + str(self.I.shape)
+            #self.error = str(self.I_t.shape)
+            #self.error2 = str(self.I.shape)
         return
